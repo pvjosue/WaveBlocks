@@ -21,20 +21,20 @@ By building a WaveBlocks microscope similar to the one in your lab you can first
 
 ## Current implemented Waveblocks
 ### OpticConfig (nn.Module)
-    Class containing global information about the optical setup, such as wavelength, wave-number and refractive index. It is also used for populating parameters accross the microscope.
+Class containing global information about the optical setup, such as wavelength, wave-number and refractive index. It is also used for populating parameters accross the microscope.
     
 ### OpticalBlock (nn.Module)
-    Base Class of the framework, containing an *OpticConfig* and *members_to_learn*, identifing which Parameters from the current block should be optimized. These are provided by the user.
+Base Class of the framework, containing an *OpticConfig* and *members_to_learn*, identifing which Parameters from the current block should be optimized. These are provided by the user.
 ### WavePropagation (OpticalBlock)
-    Uses the Rayleight-Sommerfield integral to propagate an incoming complex wave-front a given distance.
+Uses the Rayleight-Sommerfield integral to propagate an incoming complex wave-front a given distance.
 ### Lens (OpticalBlock)
-    This class can propagate a wave from the focal plane to the back focal plane or from any point i in front of the lens, to any point o in the back of the lens.
+This class can propagate a wave from the focal plane to the back focal plane or from any point i in front of the lens, to any point o in the back of the lens.
 ### DiffractiveElement (OpticalBlock)
-    Class simulating any optical element that modifies either the amplitude or phase of an incoming wave-front, such as: appertures, masks and phase-masks.
+Class simulating any optical element that modifies either the amplitude or phase of an incoming wave-front, such as: appertures, masks and phase-masks.
 ### MicroLensArray (OpticalBlock)
-    This class contains the functionality for space invariant PSF's like in micro lens arrays, used in Light-field microscopes.
+This class contains the functionality for space invariant PSF's like in micro lens arrays, used in Light-field microscopes.
 ### Camera (OpticalBlock)
-    Computes the intensity of the field hitting the camera and convolves it with an observed object. Works with space variant and invariant PSFs.
+Computes the intensity of the field hitting the camera and convolves it with an observed object. Works with space variant and invariant PSFs.
 
 # Microscope example
 Microscope Class derived from Optical block, simulates the behavior of a microscope
