@@ -79,3 +79,6 @@ The following design assumptions and functionalites are taken into account:
 * All the blocks work with a wave-optics approach of light simulation, appropiate for difracted limited systems like microscopes.
 * Light sources are assumed to be incoherent (as in fluorescence microscopy) (coherent is not yet iplemented but will be in the future for lasers and holography).
 * The scalar diffraction theory is assumed (paraxial approximation, small angles and low NA)
+
+# Cite this work
+Currently this publication is in peer-review, please contact [me](mailto:pv.josue@gmail.com) for any information.
