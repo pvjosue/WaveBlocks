@@ -21,7 +21,8 @@ import numpy as np
 from microscopes.microLFPM import Microscope
 
 # Configuration parameters
-lr = 1e-1
+lr = 1e-2
+lrNet = 1e-1
 nEpochs = 200
 # Defocus distance in front of the objective
 GT_defocus = -20
@@ -42,6 +43,7 @@ psfIn = torch.tensor(psfFile.root.PSFWaveStack, dtype=torch.float32, requires_gr
 # Load volume to use as our object in front of the microscope
 GT_volume = torch.tensor(psfFile.root.volume).unsqueeze(0).to(device)
 GT_volume/=GT_volume.max()
+nDepths = GT_volume.shape[1]
 
 # Create opticalConfig object with the information from the microscope
 opticalConfig = ob.OpticConfig(psfFile.root.wavelenght[0], 1)
@@ -60,13 +62,8 @@ opticalConfig.Nnum = psfFile.root.Nnum
 opticalConfig.mla2sensor = psfFile.root.mla2sensor
 opticalConfig.fm = psfFile.root.fm
 
-
-# Define names of variables to learn
-vars_to_learn = []#["wave_prop.propagation_distance"]
-learning_rates = [lr]
-
 # Create a Microscope
-WBMicro = Microscope(psfIn, vars_to_learn, opticalConfig).to(device)
+WBMicro = Microscope(psfIn, [], opticalConfig).to(device)
 WBMicro.eval()
 
 # Load GT LF image
@@ -75,9 +72,14 @@ GT_LF_img = torch.tensor(psfFile.root.LFImage, dtype=torch.float32, requires_gra
 # Initial Volume
 curr_volume = torch.autograd.Variable(torch.ones(GT_volume.shape, requires_grad=True), requires_grad=True)
 
-crit = nn.MSELoss()
-optimizer = optim.Adam([curr_volume], lr=lr)
+# Refinement net
+refine_net = torch.nn.Conv2d(nDepths, nDepths, kernel_size=5, padding=2, padding_mode='reflect')
 
+params = [{'params' : refine_net.parameters(), 'lr' : lrNet },
+            {'params' : curr_volume, 'lr' : lr}]
+
+crit = nn.MSELoss()
+optimizer = optim.Adam(params, lr=lr)
 
 # Arrays for storing statistics
 errors = []
@@ -88,9 +90,13 @@ for ep in range(nEpochs):
     plt.clf()
     optimizer.zero_grad()
     # Predict defocused image with current defocus
+    regularization = refine_net(curr_volume)
+
+    # ReLU as non negativity constraing
     currImg = WBMicro(curr_volume)
     
-    diff = crit(GT_LF_img, currImg)
+
+    diff = crit(GT_LF_img, currImg) + 1e-6*torch.abs(regularization).sum()
     
     # Compute error
     curr_error = diff.detach().item()
@@ -105,7 +111,7 @@ for ep in range(nEpochs):
     print(str(ep)+' MSE: '+str(curr_error))
 
     # Display results       
-    plt.subplot(2,2,2)
+    plt.subplot(3,2,2)
     plt.imshow(currImg[0,0,:,:].detach().cpu().numpy())
     plt.title('Current Guess')
     plt.gray()
@@ -113,7 +119,7 @@ for ep in range(nEpochs):
     frame1.axes.xaxis.set_ticklabels([])
     frame1.axes.yaxis.set_ticklabels([])
     
-    plt.subplot(2,2,1)
+    plt.subplot(3,2,1)
     plt.imshow(GT_LF_img[0,0,:,:].detach().cpu().numpy())
     plt.title('GT image')
     plt.gray()
@@ -121,7 +127,7 @@ for ep in range(nEpochs):
     frame1.axes.xaxis.set_ticklabels([])
     frame1.axes.yaxis.set_ticklabels([])
 
-    ax = plt.subplot(2,2,3)
+    ax = plt.subplot(3,2,3)
     ax.plot(errors, alpha=0.9, color="b" , label='Image')
     # ax.plot(errorsPM, alpha=0.9, color="r" , label='PM')
     ax.hlines(0, 0, len(errors)+1, linewidth=1, color="k")
@@ -131,7 +137,23 @@ for ep in range(nEpochs):
     plt.title("L2 loss image: "+ '{:06.3f}'.format(curr_error))
 
 
-    plt.subplot(2,2,4)
+    plt.subplot(3,2,4)
+    plt.imshow(regularization[0,:,:,:].sum(0).detach().cpu().numpy())
+    plt.title('refined')
+    plt.gray()
+    frame1 = plt.gca()
+    frame1.axes.xaxis.set_ticklabels([])
+    frame1.axes.yaxis.set_ticklabels([])
+
+    plt.subplot(3,2,5)
+    plt.imshow(GT_volume[0,:,:,:].sum(0).detach().cpu().numpy())
+    plt.title('GT volume')
+    plt.gray()
+    frame1 = plt.gca()
+    frame1.axes.xaxis.set_ticklabels([])
+    frame1.axes.yaxis.set_ticklabels([])
+
+    plt.subplot(3,2,6)
     plt.imshow(curr_volume[0,:,:,:].sum(0).detach().cpu().numpy())
     plt.title('current_volume')
     plt.gray()
