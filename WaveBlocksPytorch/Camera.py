@@ -18,7 +18,7 @@ class Camera(ob.OpticBlock):
 		psfAtSensor = ob.absSquareComplex(psf)
 		psfNormalized = self.normalize_psf(psfAtSensor)
 		if isinstance(MLA, ob.MicroLensArray):
-			output = self.apply_space_variant_psf(input, psf, MLA)
+			output = self.apply_space_variant_psf(input, psfNormalized, MLA)
 		else:
 			output = self.apply_space_invariant_psf(input, psfNormalized)
 		return output,psfNormalized
