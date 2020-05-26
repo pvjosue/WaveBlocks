@@ -37,7 +37,7 @@ plt.show()
 # Load PSF and optics information from file
 psfFile = tables.open_file('config_files/psf_20x_0.45NA.h5', "r", driver="H5FD_CORE")
 # Load PSF and arrange it as [1,nDepths,x,y,2], the last dimension stores the complex data 
-psfIn = torch.tensor(psfFile.root.PSFWaveStack, dtype=torch.float32, requires_grad=True).permute(1,3,2,0).unsqueeze(0)
+psfIn = torch.tensor(psfFile.root.PSFWaveStack, dtype=torch.float32, requires_grad=True).permute(1,3,2,0).unsqueeze(0).contiguous()
 
 # Load image to use as our object in front of the microscope
 obj_image = TF.to_tensor(Image.open('config_files/GT.tif')).unsqueeze(0).to(device)
