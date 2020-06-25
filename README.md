@@ -31,6 +31,8 @@ Wave-optics involves complex diffraction integrals that when stacking many optic
 
 By building a WaveBlocks microscope similar to the one in your lab you can first calibrate the unknown parameters, like an accurate PSF, distance between elements, and even errors caused by aberrations and SLM diffraction. Once with the capability of simulating images similar to your microscope you can plug in any Pytorch based network to the imaging system and find and optimize the optimal optical parameters together with your network.
 
+<img src="images/WBMicro_img.jpg">
+
 ## Workflow
 * Each optical element in a microscope (lenses, propagation through a medium, cameras, PSFs, Spatial Light modulator, appertures, Micro-lens arrays, etc) is represented by a block (Lego like) that can be asembled in any order, each block has as an input/output a complex Wave-Front and processes the input given the wave-optics behavior of the block.
 
