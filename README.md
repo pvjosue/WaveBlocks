@@ -1,4 +1,25 @@
+[![Apache License][license-shield]][license-url]
+[![Google Scholar][gs-shield]][gs-url]
+[![PDF][arxiv-shield]][arxiv-url]
+
 # WaveBlocks
+
+* [About the Project](#about)
+* [Workflow](#workflow)
+* [Current implemented WaveBlocks](#current-implemented-waveblocks)
+  * [OpticConfig](#opticconfig)
+  * [OpticalBlock](#opticalblock)
+  * [WavePropagation](#wavepropagation)
+  * [Lens](#lens)
+  * [DiffractiveElement](#diffractiveelement)
+  * [MicroLensArray](#microlensarray)
+  * [Camera](#camera)
+* [Examples](#microscope-example)
+* [Asumptions](#asumptions)
+* [Citing this work](#citing-this-work)
+* [Contact](#contact)
+
+## About
 A polimorfic optimization framework for Fluorescence Microscopy based on Pytorch, capable of:
 * Simulation.
 * Calibration.
@@ -20,23 +41,23 @@ By building a WaveBlocks microscope similar to the one in your lab you can first
 * Currently the main objective + tube-lens PSF is imported from an external file. Use Matlab, Fiji or your chosen software to generate the PSF. Its whape should be *[1,nDepths,dim1,dim2,2]* (the last dimension gathers the real and imaginary parts.
 
 ## Current implemented Waveblocks
-### OpticConfig (nn.Module)
+### OpticConfig
 Class containing global information about the optical setup, such as wavelength, wave-number and refractive index. It is also used for populating parameters accross the microscope.
     
-### OpticalBlock (nn.Module)
+### OpticalBlock
 Base Class of the framework, containing an *OpticConfig* and *members_to_learn*, identifing which Parameters from the current block should be optimized. These are provided by the user.
-### WavePropagation (OpticalBlock)
+### WavePropagation
 Uses the Rayleight-Sommerfield integral to propagate an incoming complex wave-front a given distance.
-### Lens (OpticalBlock)
+### Lens
 This class can propagate a wave from the focal plane to the back focal plane or from any point i in front of the lens, to any point o in the back of the lens.
-### DiffractiveElement (OpticalBlock)
+### DiffractiveElement
 Class simulating any optical element that modifies either the amplitude or phase of an incoming wave-front, such as: appertures, masks and phase-masks.
-### MicroLensArray (OpticalBlock)
+### MicroLensArray
 This class contains the functionality for space invariant PSF's like in micro lens arrays, used in Light-field microscopes.
-### Camera (OpticalBlock)
+### Camera
 Computes the intensity of the field hitting the camera and convolves it with an observed object. Works with space variant and invariant PSFs.
 
-# Microscope example
+## Microscope example
 Microscope Class derived from Optical block, simulates the behavior of a microscope
 ```python
 import WaveBlocksPytorch as ob
@@ -74,11 +95,35 @@ class Microscope(ob.OpticBlock):
         return finalImg
 ```
 
-# Asumptions
+## Asumptions
 The following design assumptions and functionalites are taken into account:
 * All the blocks work with a wave-optics approach of light simulation, appropiate for difracted limited systems like microscopes.
 * Light sources are assumed to be incoherent (as in fluorescence microscopy) (coherent is not yet iplemented but will be in the future for lasers and holography).
 * The scalar diffraction theory is assumed (paraxial approximation, small angles and low NA)
 
-# Cite this work
-Currently this publication is in peer-review, please contact [me](mailto:pv.josue@gmail.com) for any information.
+## Citing this work
+```bibtex
+@article{pageWaveBlocks2020,
+    author = {Page, Josue and Favaro, Paolo},   
+    title = {Learning to Model and Calibrate Optics via a Differentiable Wave Optics Simulator},
+    booktitle = {arXiv},
+    year = {2020}, 
+    eprint = {2005.08562}
+}
+```
+## Contact
+Josue Page - josue.page@tum.de
+
+[forks-shield]: https://img.shields.io/github/forks/othneildrew/Best-README-Template.svg?style=flat-square
+[forks-url]: https://github.com/pvjosue/WaveBlocks/network/members
+[stars-shield]: https://img.shields.io/github/stars/othneildrew/Best-README-Template.svg?style=flat-square
+[stars-url]: https://github.com/pvjosue/WaveBlocks/stargazers
+[issues-shield]: https://img.shields.io/github/issues/othneildrew/Best-README-Template.svg?style=flat-square
+[issues-url]: https://github.com/pvjosue/WaveBlocks/issues
+[license-shield]: https://img.shields.io/github/license/othneildrew/Best-README-Template.svg?style=flat-square
+[license-url]: https://github.com/pvjosue/WaveBlocks/blob/master/LICENSE
+[gs-shield]: https://img.shields.io/badge/-GoogleScholar-black.svg?style=flat-square&logo=google-scholar&colorB=555
+[gs-url]: https://scholar.google.com/citations?user=5WfCRjQAAAAJ&hl=en
+[product-screenshot]: images/screenshot.png
+[arxiv-shield]: https://img.shields.io/badge/-PDF-black.svg?style=flat-square&logo=arXiv&colorB=555
+[arxiv-url]: https://arxiv.org/abs/2005.08562
