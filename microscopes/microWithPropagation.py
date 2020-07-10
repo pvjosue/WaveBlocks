@@ -23,7 +23,7 @@ class Microscope(ob.OpticBlock):
 
     def forward(self, realObject):
         # Fetch PSF
-        psf = self.psf
+        psf = self.psf.clone()
 
         # Defocus PSF given wave_prop.propagation_distance
         psf = self.wave_prop(psf)

@@ -20,7 +20,7 @@ class WavePropagation(ob.OpticBlock):
 		# Field metric size
 		L = torch.mul(self.sampling_rate, self.field_length)
 
-		ideal_rate = torch.abs(self.optic_config.wavelenght * self.propagation_distance / L)
+		ideal_rate = torch.abs(self.optic_config.PSF_config.wvl  * self.propagation_distance / L)
 		# Sampling defines if aliases apear or not, for shorter propagation distances higher sampling is needed
 		# here we limit the ammount of sampling posible to 2500, which allow a propagation_distance as small as 400um
 		ideal_samples_no = torch.min(torch.tensor([2500.0], dtype=torch.float32), torch.ceil(torch.div(L, ideal_rate)))
@@ -46,7 +46,7 @@ class WavePropagation(ob.OpticBlock):
 			field = fieldIn.view(fieldIn.shape[0],-1,fieldIn.shape[4],fieldIn.shape[5],2)
 		else:
 			field = fieldIn
-		fieldOut = field.clone()
+		fieldOut = field#.clone()
 		nDepths = field.shape[1]
 
 
@@ -58,7 +58,7 @@ class WavePropagation(ob.OpticBlock):
 		# compute coordinates
 		rho = torch.sqrt(self.XY + torch.mul(Z,Z))
 		# h = z./(1i*lambda.*rho.^2).* exp(1i*k.*rho);
-		in1 =  ob.divComplex(torch.tensor([Z, 0.0], dtype=torch.float32).to(Z.device), torch.cat((torch.zeros(rho.shape).unsqueeze(2).to(Z.device),self.optic_config.wavelenght * torch.mul(rho,rho).unsqueeze(2)), 2))
+		in1 =  ob.divComplex(torch.tensor([Z, 0.0], dtype=torch.float32).to(Z.device), torch.cat((torch.zeros(rho.shape).unsqueeze(2).to(Z.device),self.optic_config.PSF_config.wvl * torch.mul(rho,rho).unsqueeze(2)), 2))
 		# exp(1i*k.*rho)
 		in2 = ob.expComplex(torch.cat((torch.zeros(rho.shape,dtype=torch.float32).unsqueeze(2).to(Z.device),self.optic_config.k * torch.sign(self.propagation_distance) * rho.unsqueeze(2)), 2))
 		h = ob.mulComplex(in2, in1)
@@ -114,7 +114,7 @@ class WavePropagation(ob.OpticBlock):
 		## Fresnel
 		# # exp(1i*k*z)/(1i*lambda*z)
 		# in11 = ob.expComplex(torch.tensor([0.,k * self.propagation_distance]))
-		# in12 = torch.tensor([0.,self.optic_config.wavelenght * self.propagation_distance])
+		# in12 = torch.tensor([0.,self.optic_config.PSF_config.wvl  * self.propagation_distance])
 		# in1 = ob.divComplex(in11,in12)
 		# # exp(1i * k/(2*z)*((x).^2+y.^2))
 		# inR = 0 * X
@@ -128,7 +128,7 @@ class WavePropagation(ob.OpticBlock):
 		# coordinates
 		rho = nn.Parameter(torch.sign(Z) * torch.sqrt(torch.mul(self.X,self.X) + torch.mul(self.Y,self.Y) + torch.mul(Z,Z)), requires_grad=True)
 		# h = z./(1i*lambda.*rho.^2).* exp(1i*k.*rho);
-		in1 =  ob.divComplex(torch.tensor([Z, 0.0]).to(Z.device), torch.cat((torch.zeros(rho.shape).unsqueeze(2).to(Z.device),self.optic_config.wavelenght * torch.mul(rho,rho).unsqueeze(2)), 2))
+		in1 =  ob.divComplex(torch.tensor([Z, 0.0]).to(Z.device), torch.cat((torch.zeros(rho.shape).unsqueeze(2).to(Z.device),self.optic_config.PSF_config.wvl  * torch.mul(rho,rho).unsqueeze(2)), 2))
 		# exp(1i*k.*rho)
 		in2 = ob.expComplex(torch.cat((torch.zeros(rho.shape).unsqueeze(2).to(Z.device),self.optic_config.k * rho.unsqueeze(2)), 2))
 		self.h = nn.Parameter(ob.mulComplex(in2, in1), requires_grad=True)

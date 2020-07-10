@@ -32,10 +32,10 @@ class Microscope(ob.OpticBlock):
             Fs = 1.0/self.sampling_rate
             cyclesPerum = Fs / field_length
             # Incoherent resolution limit
-            resolutionLimit = optical_config.wavelenght/(optical_config.NA*optical_config.M)
+            resolutionLimit = optical_config.PSF_config.wvl/(optical_config.PSF_config.NA*optical_config.PSF_config.M)
             nPixInFourier = resolutionLimit / cyclesPerum
             # Diameter of the objective back focal plane, which acts as the entrance pupil for our system
-            dObj = optical_config.fobj * optical_config.NA
+            dObj = optical_config.PSF_config.fobj * optical_config.PSF_config.NA
             # Sampling size on the fourier domain
             self.fourierMetricSampling = dObj / nPixInFourier
 

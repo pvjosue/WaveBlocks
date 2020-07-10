@@ -17,7 +17,7 @@ class Lens(ob.OpticBlock):
 		self.img_distance = nn.Parameter(torch.tensor([img_distance], dtype=torch.float32, requires_grad=True))
 
 		# compute input coefficient (scaling)
-		U1C1 = ob.expComplex(torch.tensor([0.,optic_config.k * self.focal_length])) / optic_config.wavelenght / self.focal_length
+		U1C1 = ob.expComplex(torch.tensor([0.,optic_config.k * self.focal_length])) / optic_config.PSF_config.wvl / self.focal_length
 		self.coefU1minus = nn.Parameter(ob.mulComplex( U1C1, torch.tensor([0.,-1])))
         
 		# compute cuttoff frequency and mask
@@ -27,11 +27,11 @@ class Lens(ob.OpticBlock):
 		dx1 = self.field_size/M
 
 		# obs sidelength
-		self.L = self.optic_config.wavelenght*self.focal_length/dx1	
+		self.L = self.optic_config.PSF_config.wvl*self.focal_length/dx1	
 
 		
 		# cutoff frequency
-		f0 = self.apperture_width/(self.optic_config.wavelenght*self.focal_length)
+		f0 = self.apperture_width/(self.optic_config.PSF_config.wvl*self.focal_length)
 		L = M*self.sampling_rate
 		#source sample interval
 		Fs = 1/self.sampling_rate
@@ -69,7 +69,7 @@ class Lens(ob.OpticBlock):
         # Based on the function propFF out of the book "Computational Fourier
 		# Optics. A MATLAB Tutorial". There you can find more information.
 
-		wavelenght = self.optic_config.get_wavelenght()
+		wavelenght = self.optic_config.PSF_config.wvl
 		[M,N] = u1.shape[-3:-1]
 
 		#source sample interval

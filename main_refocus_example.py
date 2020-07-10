@@ -24,36 +24,41 @@ from microscopes.microWithPropagation import Microscope
 lr = 1e2
 nEpochs = 200
 # Defocus distance in front of the objective
-GT_defocus = -20
+GT_defocus = -200.0
 
 # Fetch Device to use
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 
 # Enable plotting 
 fig = plt.figure(num=None, figsize=(15, 10), dpi=80, facecolor='w', edgecolor='k')
 plt.ion()
 plt.show() 
 
-# Load PSF and optics information from file
-psfFile = tables.open_file('config_files/psf_20x_0.45NA.h5', "r", driver="H5FD_CORE")
-# Load PSF and arrange it as [1,nDepths,x,y,2], the last dimension stores the complex data 
-psfIn = torch.tensor(psfFile.root.PSFWaveStack, dtype=torch.float32, requires_grad=True).permute(1,3,2,0).unsqueeze(0).contiguous()
-
 # Load image to use as our object in front of the microscope
 obj_image = TF.to_tensor(Image.open('config_files/GT.tif')).unsqueeze(0).to(device)
 obj_image/=obj_image.max()
 
 # Create opticalConfig object with the information from the microscope
-opticalConfig = ob.OpticConfig(psfFile.root.wavelenght[0], 1)
-# Load info from PSF file                                      
-opticalConfig.sensor_pitch = psfFile.root.sensorRes[0]
-opticalConfig.NA = psfFile.root.NA[0]
-opticalConfig.M = psfFile.root.M[0]
-opticalConfig.ftl = psfFile.root.ftl[0]
-opticalConfig.fobj = opticalConfig.ftl/opticalConfig.M
+opticalConfig = ob.OpticConfig()
+
+psf_size = 17*5
+opticalConfig.PSF_config.NA = 0.45
+opticalConfig.PSF_config.M = 20
+opticalConfig.PSF_config.Ftl = 165000
+opticalConfig.PSF_config.wvl = 0.63
+opticalConfig.PSF_config.ni = 1
+opticalConfig.PSF_config.fobj = opticalConfig.PSF_config.Ftl/opticalConfig.PSF_config.M
+
+# Camera                                     
+opticalConfig.sensor_pitch = 6.9
+
+# Define PSF
+PSF = ob.PSF(opticalConfig)
+_,psfIn = PSF.forward(opticalConfig.sensor_pitch/opticalConfig.PSF_config.M, psf_size, np.array([0]))
+
 # This variable controls the min posible defocus in image space, 
 # as the sampling of the Fourier space depends on the propagation distance
-opticalConfig.minDefocus = -5*opticalConfig.M**2
+opticalConfig.minDefocus = -5*opticalConfig.PSF_config.M**2
 
 
 # Define names of variables to learn
@@ -77,11 +82,11 @@ crit = nn.MSELoss()
 optimizer = optim.Adam(trainable_vars_and_lr, lr=lr)
 
 # Generate GT defocused image
-WBMicroGT.wave_prop.propagation_distance = nn.Parameter(torch.tensor([GT_defocus*opticalConfig.M**2]).to(device))
+WBMicroGT.wave_prop.propagation_distance = nn.Parameter(torch.tensor([GT_defocus*opticalConfig.PSF_config.M**2]).to(device))
 Gt_img = WBMicroGT(obj_image)
 Gt_img = Gt_img.detach()
 # Reinit the propagation distance randomly, to then optimize it
-WBMicro.wave_prop.propagation_distance.data = torch.tensor([-50.*opticalConfig.M**2]).to(device)
+WBMicro.wave_prop.propagation_distance.data = torch.tensor([-50.*opticalConfig.PSF_config.M**2]).to(device)
 
 # Arrays for storing statistics
 errors = []
@@ -105,7 +110,7 @@ for ep in range(nEpochs):
     errors.append(curr_error)
 
     # Store current prediction
-    curr_defocus = WBMicro.wave_prop.propagation_distance.detach() / (opticalConfig.M**2)    
+    curr_defocus = WBMicro.wave_prop.propagation_distance.detach() / (opticalConfig.PSF_config.M**2)    
     predictions.append(curr_defocus)
 
     print(str(ep)+' MSE: '+str(curr_error))
@@ -146,4 +151,5 @@ for ep in range(nEpochs):
     plt.suptitle('Microscope refocusing with WaveBlocks')
     plt.pause(0.1)
     plt.show()
+    # plt.savefig('out/fig_'+str(ep)+'.png')
 psfFile.close()

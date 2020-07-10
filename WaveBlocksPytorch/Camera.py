@@ -15,7 +15,12 @@ class Camera(ob.OpticBlock):
 		#        """This function either convolves the current PSF with a given object, or propagates the PSF through a periodic_element like a MicroLensArray, returning a 5D PSF"""
 		#assert isinstance(psf, ob.PSF), "ob.PSF object needed to compute an image at the camera sensor"
 		
-		psfAtSensor = ob.absSquareComplex(psf)
+		# Check if PSF is in complex mode and convert to intensity
+		if psf.shape[-1]==2:
+			psfAtSensor = ob.absSquareComplex(psf)
+		else:
+			psfAtSensor = psf
+			
 		psfNormalized = self.normalize_psf(psfAtSensor)
 		if isinstance(MLA, ob.MicroLensArray):
 			output = self.apply_space_variant_psf(input, psfNormalized, MLA)
