@@ -106,11 +106,10 @@ The following design assumptions and functionalites are taken into account:
 ## Citing this work
 ```bibtex
 @article{pageWaveBlocks2020,
-    author = {Page, Josue and Favaro, Paolo},   
-    title = {Learning to Model and Calibrate Optics via a Differentiable Wave Optics Simulator},
-    booktitle = {arXiv},
-    year = {2020}, 
-    eprint = {2005.08562}
+    author = {Page, Josue and Favaro, Paolo},
+    booktitle = {IEEE International Conference on Image Processing (ICIP)},
+    title = {{L}earning to {M}odel and {C}alibrate {O}ptics via a {D}ifferentiable {W}ave {O}ptics {S}imulator},
+    year = {2020}
 }
 ```
 ## Contact
