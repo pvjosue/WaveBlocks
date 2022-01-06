@@ -27,42 +27,56 @@ A polimorfic optimization framework for Fluorescence Microscopy based on Pytorch
 * Joint optimization of optics and reconstruction, segmentation and arbitrary optimization tasks.
 * Plug and play to Pytorch neural networks.
 
-Wave-optics involves complex diffraction integrals that when stacking many optical elements become very hard to derivate and optimize. Here we take advantage of the linearity of the posible operations and modularize them into blocks, enabling building arbitrarly large systems.
+Wave-optics involves complex diffraction integrals that when stacking many optical elements become very hard to derivate and optimize. Here we take advantage of the linearity of the possible operations and modularize them into blocks, enabling building arbitrarily large systems.
 
 By building a WaveBlocks microscope similar to the one in your lab you can first calibrate the unknown parameters, like an accurate PSF, distance between elements, and even errors caused by aberrations and SLM diffraction. Once with the capability of simulating images similar to your microscope you can plug in any Pytorch based network to the imaging system and find and optimize the optimal optical parameters together with your network.
 
 <img src="images/WBMicro_img.jpg">
 
 ## Workflow
-* Each optical element in a microscope (lenses, propagation through a medium, cameras, PSFs, Spatial Light modulator, appertures, Micro-lens arrays, etc) is represented by a block (Lego like) that can be asembled in any order, each block has as an input/output a complex Wave-Front and processes the input given the wave-optics behavior of the block.
+* Each optical element in a microscope (lenses, propagation through a medium, cameras, PSFs, Spatial Light modulator, apertures, Micro-lens arrays, etc) is represented by a block (Lego like) that can be assembled in any order, each block has as an input/output a complex Wave-Front and processes the input given the wave-optics behavior of the block.
 
 * Most of the variables of the blocks are optimizable, allowing straight forward tasks like calibrating distances between optical elements, correction factors, compute real PSFs, all based on real data. 
 
 * All the blocks are based on a OpticBlock class. Which takes care of gathering the parameters to optimize selected by the user and return them to be fed to the optimizer (Adam, SGD, etc).
 
-* Currently the main objective + tube-lens PSF is imported from an external file. Use Matlab, Fiji or your chosen software to generate the PSF. Its whape should be *[1,nDepths,dim1,dim2,2]* (the last dimension gathers the real and imaginary parts.
+* Currently the main objective + tube-lens PSF is imported from an external file. Use Matlab, Fiji or your chosen software to generate the PSF. Its shape should be *[1,nDepths,dim1,dim2,2]* (the last dimension gathers the real and imaginary parts.
 
 ## Current implemented Waveblocks
-### OpticConfig
-Class containing global information about the optical setup, such as wavelength, wave-number and refractive index. It is also used for populating parameters accross the microscope.
+### OpticConfig (nn.Module)
+Class containing global information about the optical setup, such as wavelength, wave-number and refractive index. It is also used for populating parameters across the microscope.
     
-### OpticalBlock
-Base Class of the framework, containing an *OpticConfig* and *members_to_learn*, identifing which Parameters from the current block should be optimized. These are provided by the user.
-### WavePropagation
+### OpticalBlock (nn.Module)
+Base Class of the framework, containing an *OpticConfig* and *members_to_learn*, identifying which Parameters from the current block should be optimized. These are provided by the user.
+### WavePropagation (OpticalBlock)
 Uses the Rayleight-Sommerfield integral to propagate an incoming complex wave-front a given distance.
-### Lens
+### Lens (OpticalBlock)
 This class can propagate a wave from the focal plane to the back focal plane or from any point i in front of the lens, to any point o in the back of the lens.
-### DiffractiveElement
-Class simulating any optical element that modifies either the amplitude or phase of an incoming wave-front, such as: appertures, masks and phase-masks.
-### MicroLensArray
+### DiffractiveElement (OpticalBlock)
+Class simulating any optical element that modifies either the amplitude or phase of an incoming wave-front, such as: apertures, masks and phase-masks.
+### MicroLensArray (OpticalBlock)
 This class contains the functionality for space invariant PSF's like in micro lens arrays, used in Light-field microscopes.
-### Camera
+### Camera (OpticalBlock)
 Computes the intensity of the field hitting the camera and convolves it with an observed object. Works with space variant and invariant PSFs.
 
-## Microscope example
+# Use Waveblocks locally
+## Generating distribution archives
+To distribute WaveBlocks on PyPa it has to be packaged this can be done with the following commands. For a more detailed explanation please follow this [guide](https://packaging.python.org/tutorials/packaging-projects/).
+```
+python3 -m pip install --upgrade build
+python3 -m build
+```
+
+## Install WaveBlocks
+Since WaveBlocks is currently not published on PyPa but its still packaged with pip one has to install it locally to use it. The following command has to be executed in the `/WaveBlocks` folder abd will install the package locally in an editable mode.  
+```
+pip3 install -e ["PathToWaveBlocksFolder"]
+```
+
+# Microscope example
 Microscope Class derived from Optical block, simulates the behavior of a microscope
 ```python
-import WaveBlocksPytorch as ob
+import waveblocks as ob
 import torch
 import torch.nn as nn
     
