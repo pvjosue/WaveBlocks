@@ -109,7 +109,7 @@ class Microscope(BaseMicroscope):
             optic_config=self.optic_config,
             members_to_learn=[],
             pixel_size=self.sampling_rate,
-            space_variant_psf=self.space_variant_psf,
+            space_variant_psf=self.space_variant_psf and self.use_mla,
         )
 
     def forward(self, real_object):
@@ -131,7 +131,7 @@ class Microscope(BaseMicroscope):
             # propagate from MLA to sensor
             psf_at_sensor = self.mla2sensor(psf_5d)
             # compute final PSF and convolve with object
-            convolved_obj, psf, _ = self.camera(real_object, psf_at_sensor, self.mla)
+            convolved_obj, psf, _ = self.camera(real_object, psf_at_sensor, self.mla, full_psf_graph=True)
         else:
-            convolved_obj, psf, _ = self.camera(real_object, psf)
+            convolved_obj, psf, _ = self.camera(real_object, psf, full_psf_graph=True)
         return convolved_obj

@@ -19,6 +19,7 @@ import torch.optim as optim
 import math
 from datetime import datetime
 import pathlib
+from tqdm import tqdm
 
 # Waveblocks imports
 from waveblocks.microscopes.lightfield_pm_micro import Microscope
@@ -42,7 +43,7 @@ vol_xy_size = 251
 # Configuration parameters
 lr = 5e-2
 maxVolume = 1
-nEpochs = 200
+nEpochs = 2000
 
 file_path = pathlib.Path(__file__).parent.absolute()
 output_path = str(file_path.parent.joinpath("runs/LF_PM/")) + "/"
@@ -95,7 +96,6 @@ opticalConfig.PSF_config.ni = 1
 
 # Camera
 opticalConfig.sensor_pitch = 6.9
-opticalConfig.use_relay = False
 
 # MLA
 opticalConfig.use_mla = True
@@ -142,7 +142,7 @@ fourier_metric_sampling = d_obj / n_pix_in_fourier
 opticalConfig.pm_sampling = fourier_metric_sampling
 opticalConfig.pm_shape = [
     int(opticalConfig.pm_pixel_size / fourier_metric_sampling * 1080),
-    int(opticalConfig.pm_pixel_size / fourier_metric_sampling * 1920),
+    int(opticalConfig.pm_pixel_size / fourier_metric_sampling * 1080),
 ]
 opticalConfig.max_phase_shift = 5.4 * math.pi
 
@@ -167,7 +167,7 @@ else:
 X *= opticalConfig.pm_shape[0]
 Y *= opticalConfig.pm_shape[1]
 
-if False:
+if True:
     # round phase mask
     pm_img = pm_mask.float() * torch.sqrt(torch.mul(X, X) + torch.mul(Y, Y))
 else:
@@ -225,7 +225,7 @@ save_folder = (
 errors_imgs = []
 errors_pm = []
 # Optimize
-for ep in range(nEpochs):
+for ep in tqdm(range(nEpochs)):
     plt.clf()
     optimizer.zero_grad()
     WBMicro.zero_grad()
@@ -250,18 +250,29 @@ for ep in range(nEpochs):
     curr_pm_error = crit(GT_Phase_Mask, curr_PM).item()
     errors_pm.append(curr_pm_error)
 
-    logger.info(str(ep) + " MSE_img: " + str(curr_error))
-    logger.info(str(ep) + " MSE_PM: " + str(curr_pm_error))
+    # logger.info(str(ep) + " MSE_img: " + str(curr_error))
+    # logger.info(str(ep) + " MSE_PM: " + str(curr_pm_error))
 
     if ep%10==0:
         # plt.subplot(2,2,1)
         # plt.imshow(volume_2_projections(GT_volume).squeeze().cpu().numpy())
-        plt.subplot(2,2,1)
+        plt.subplot(3,2,1)
         plt.imshow(GT_LF_img.sum(1).squeeze().cpu().numpy())
-        plt.subplot(2,2,2)
+        plt.title('GT_LF')
+        plt.subplot(3,2,2)
         plt.imshow(currImg.sum(1).detach().squeeze().cpu().numpy())
-        plt.subplot(2,2,3)
+        plt.title('Pred_LF')
+        plt.subplot(3,2,3)
         plt.imshow(GT_Phase_Mask[0, ...].detach().squeeze().cpu().numpy())
-        plt.subplot(2,2,4)
+        plt.title('GT_PM')
+        plt.subplot(3,2,4)
         plt.imshow(curr_PM[0, ...].detach().squeeze().cpu().numpy())
+        plt.title('Pred_PM')
+        plt.subplot(3,2,5)
+        plt.plot(errors_pm)
+        plt.title('Error PM')
+        plt.subplot(3,2,6)
+        plt.plot(errors_imgs)
+        plt.title('Error img')
         plt.show()
+        plt.savefig(f'output_PM_learning_ep{ep}.png')
