@@ -1,11 +1,15 @@
-# Example script of WaveBlocks framework.
-# This script uses a Fourier Light Field (FLF) microscope with a Microlens Array (MLA)
-# The aim of this experiment is to look at the functionality of the FLF microscope with a MLA
-# Therefore we forward project a volume of a fish, generating the GT_LF_image.
+"""
+Example script of WaveBlocks framework.
+This script uses a Fourier Light Field (FLF) microscope with a Microlens Array (MLA)
 
-# Erik Riedel & Josef Kamysek
-# erik.riedel@tum.de & josef@kamysek.com
-# 15/10/2020, Munich, Germany
+The aim of this experiment is to compare the fourier convolution with a conventional
+Therefore we forward project a volume of a fish, generating the GT_LF_image.
+We do this with each technique and compare results and speed.
+
+Erik Riedel & Josef Kamysek
+erik.riedel@tum.de & josef@kamysek.com
+15/10/2020, Munich, Germany
+"""
 
 # Third party libraries imports
 import matplotlib.pyplot as plt

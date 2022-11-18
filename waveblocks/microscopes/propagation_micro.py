@@ -11,7 +11,7 @@ class Microscope(BaseMicroscope):
             optic_config=optic_config,
             members_to_learn=members_to_learn,
             psf_in=psf_in,
-            space_variant_psf=True,
+            space_variant_psf=False,
         )
 
         # Create Wave-Propagation block, to defocus the PSF to a given depth
@@ -33,11 +33,11 @@ class Microscope(BaseMicroscope):
 
     def forward(self, real_object):
         # Fetch PSF
-        psf = self.psf_in
+        psf = self.psf_in.clone()
 
         # Defocus PSF given wave_prop.propagation_distance
         psf = self.wave_prop(psf)
 
         # Compute PSF irradiance and convolve with object
-        finalImg, psf, _ = self.camera(real_object, psf)
+        finalImg, psf, _ = self.camera(real_object, psf, full_psf_graph=True)
         return finalImg

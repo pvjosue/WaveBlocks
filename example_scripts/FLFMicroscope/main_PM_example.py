@@ -1,8 +1,9 @@
 """
 Example script of WaveBlocks framework.
-This script uses a Fourier Light Field (FLF) microscope with a Microlens Array (MLA)
-The aim of this experiment is to look at the functionality of the FLF microscope with a MLA
-Therefore we forward project a volume of a fish, generating the GT_LF_image.
+This script uses a Fourier Light Field (FLF) microscope with a Microlens Array (MLA) and a phase mask (PM)
+
+The aim of this experiment is to show the minimum configuration of a FLF microscope with a PM included
+Therefore we forward project a volume of a fish.
 
 
 # Erik Riedel & Josef Kamysek
@@ -21,7 +22,7 @@ import math
 
 # Waveblocks imports
 import waveblocks
-from waveblocks.microscopes.fourier_lightfield_mla_micro import Microscope
+from waveblocks.microscopes.fourier_lightfield_mla_micro import Microscope, preset1
 from waveblocks.blocks.microlens_arrays import MLAType
 from waveblocks.blocks.optic_config import OpticConfig
 import waveblocks.blocks.point_spread_function as psf
@@ -73,43 +74,12 @@ gt_volume /= gt_volume.max()
 gt_volume *= max_volume
 
 # Create opticalConfig object with the information from the microscope
-optic_config = OpticConfig()
+optic_config = preset1()
+
 
 # Update optical config from input PSF
 # Lateral size of PSF in pixels
 psf_size = 17 * 31
-# Microscope numerical aperture
-optic_config.PSF_config.NA = 0.45
-# Microscope magnification
-optic_config.PSF_config.M = 6
-# Microscope tube-lens focal length
-optic_config.PSF_config.Ftl = 165000
-# Objective focal length = Ftl/M
-optic_config.PSF_config.fobj = optic_config.PSF_config.Ftl / optic_config.PSF_config.M
-# Emission wavelength
-optic_config.PSF_config.wvl = 0.63
-# Immersion refractive index
-optic_config.PSF_config.ni = 1
-
-# Camera
-optic_config.sensor_pitch = 3.9
-optic_config.useRelays = False
-
-# MLA
-optic_config.use_mla = True
-optic_config.mla_type = MLAType.coordinate
-# Distance between micro lenses centers
-optic_config.MLAPitch = 250
-
-# Number of pixels behind a single lens
-optic_config.Nnum = 2 * [optic_config.MLAPitch // optic_config.sensor_pitch]
-optic_config.Nnum = [int(n + (1 if (n % 2 == 0) else 0)) for n in optic_config.Nnum]
-
-# Distance between the mla and the sensor
-optic_config.mla2sensor = 2500
-
-# MLA focal length
-optic_config.fm = 2500
 
 # Define PSF
 PSF = psf.PSF(optic_config=optic_config, members_to_learn=[])
@@ -117,11 +87,6 @@ _, psf_in = PSF.forward(
     optic_config.sensor_pitch / optic_config.PSF_config.M, psf_size, depths
 )
 
-# Define phase_mask to initialize
-optic_config.use_relay = True
-optic_config.relay_focal_length = 150000
-optic_config.relay_separation = optic_config.relay_focal_length * 2
-optic_config.relay_aperture_width = 50800
 
 # Create Microscope
 # List of all coordinates in the MLA
@@ -137,6 +102,9 @@ mla_coordinates = [
     (400, 400),
 ]
 mla_shape = [500, 500]
+
+# Enable Fourier convolutions
+optic_config.use_fft_conv = True
 
 # Define phase mask
 optic_config.use_pm = True

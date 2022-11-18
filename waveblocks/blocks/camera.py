@@ -44,7 +44,7 @@ class Camera(OpticBlock):
         if self.space_variant_psf:
             if is_backwards:
                 raise NotImplementedError
-            image = self.apply_space_variant_psf(input, psf_normalized, mla)
+            output = self.apply_space_variant_psf(input, psf_normalized, mla)
         else:
             if self.use_fft_conv:
                 output = self.apply_space_invariant_psf_fourier(
@@ -195,6 +195,7 @@ class Camera(OpticBlock):
 
         return vol_convolved
 
+
     def apply_space_invariant_psf_fourier(self, real_object, psf, is_backwards=False, full_psf_graph=False):
         # If the real_object is an image, replicate it to match the psf number of depths. This only for a forward projection
         if real_object.shape[1]==1 and is_backwards==True:
@@ -203,10 +204,13 @@ class Camera(OpticBlock):
         assert (    
             psf.shape[1] == real_object.shape[1]
         ), "Different number of depths in PSF and object"
-        # assert (
-        #     real_object.shape[-1] % 2 == 1 and real_object.shape[-2] % 2 == 1 and\
-        #     psf.shape[-1] % 2 == 1 and psf.shape[-2] % 2 == 1
-        # ), "Odd size PSF and Volume needed for Fourier convolution"
+        assert (
+            real_object.shape[-1] % 2 == 1 and real_object.shape[-2] % 2 == 1 and\
+            psf.shape[-1] % 2 == 1 and psf.shape[-2] % 2 == 1
+        ), "Odd size PSF and Volume needed for Fourier convolution"
+        
+        
+        self.fft_paddings_ready = not full_psf_graph
         # Compute OTF, this happens only once even though this function is called multiple times
         # Padding is performed, so the fourier convolution is equivalent to regular convolution
         self.padSizesVol, self.padSizesPSF, OTF = self.setup_fft_conv(psf, real_object, full_psf_graph=full_psf_graph)
@@ -226,6 +230,7 @@ class Camera(OpticBlock):
         conv_res = f.pad(conv_res, [-k for k in self.padSizesPSF])
 
         return conv_res
+
 
     def normalize_psf(self, psf):
         if psf.ndim == 6:  # LF psf
@@ -267,4 +272,4 @@ class Camera(OpticBlock):
             # Set flag indicating that it's ready
             self.fft_paddings_ready = True
 
-        return self.padSizesVol, self.padSizesPSF, self.OTF.clone()
+        return self.padSizesVol, self.padSizesPSF, self.OTF

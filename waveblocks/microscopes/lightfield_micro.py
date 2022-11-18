@@ -61,17 +61,17 @@ class Microscope(BaseMicroscope):
             )
 
             # System Noise
-            self.noise = Noise(optic_config=self.optic_config, members_to_learn=[])
+            # self.noise = Noise(optic_config=self.optic_config, members_to_learn=[])
 
     def forward(self, real_object):
         if self.use_mla:
             # compute final PSF and convolve with object
             convolved_obj, psf, _ = self.camera(
-                real_object, self.psf_at_sensor, self.mla
+                real_object, self.psf_at_sensor, self.mla, full_psf_graph=True
             )
         else:
-            convolved_obj, psf, _ = self.camera(real_object, self.psf_at_sensor)
-        convolved_obj = self.noise(convolved_obj)
+            convolved_obj, psf, _ = self.camera(real_object, self.psf_at_sensor, full_psf_graph=True)
+        # convolved_obj = self.noise(convolved_obj)
         return convolved_obj
 
 

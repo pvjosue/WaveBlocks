@@ -4,29 +4,10 @@ import torch.nn.functional as F
 from PIL import Image
 import torchvision.transforms as TF
 import matplotlib.pyplot as plt
-from skimage.exposure import match_histograms
 from scipy.ndimage.filters import gaussian_filter
-from skimage.filters import threshold_otsu as otsu
 import h5py
-import gc
 import re
 import numpy as np
-from sklearn.decomposition import PCA
-import findpeaks
-import pickle
-import math 
-# from tsne_torch import TorchTSNE as TSNE
-from sklearn.manifold import TSNE
-
-"""
-Extracted the shpere implemention from the package pymrt since the package had errors
-
-Link: https://pypi.org/project/pymrt/
-Repository: https://bitbucket.org/norok2/pymrt/src/master/
-
-"""
-
-
 
 def combine_iter_len(items, combine=max):
     """
@@ -795,38 +776,6 @@ def normalize_PSF_pair(psf_in, psf_gt, norm_to_use=torch.sum, chans_to_norm=[]):
     return psf_out
 
 
-
-
-
-# Compute PCA
-def fit_pca_to_latent(X, pca=None, n_components=2, pca_type=1):
-    '''pca_type referes to: 1: PCA, 2: T-sne'''
-    if len(X.shape) != 2:
-        X = X.view(X.shape[0],-1)
-    X = X.detach().float().cpu().numpy()
-    if pca is None:
-        if pca_type==1:
-            pca = PCA(n_components=n_components)
-            pca.fit(X)
-        elif pca_type==2:
-            pca = TSNE(n_components=n_components)#, perplexity=30, n_iter=1000, verbose=True)
-            # pca.fit_transform(X)
-        return 0,0,0,pca
-
-    reproj = X
-    # Apply dimensionality reduction
-    if pca_type==1:
-        forward = pca.transform(X)# Project back
-        reproj = pca.inverse_transform(forward)
-    elif pca_type==2:
-        forward = pca.fit_transform(X)# Project back
-    
-    # Measure distance between projection and GT
-    distance = np.mean((X-reproj)**2,axis=1)
-
-    return forward, reproj, distance, pca
-
-
 class ConcatDataset(torch.utils.data.Dataset):
     def __init__(self, *datasets):
         self.datasets = datasets
@@ -899,26 +848,6 @@ class ConcatDataset(torch.utils.data.Dataset):
         for d in self.datasets:
             d.standarize(stats)
 
-
-def _otsu(data: torch.Tensor, **kwargs) -> float:
-    """
-    Returns an intensity threshold for an image that separates it
-    into backgorund and foreground pixels.
-
-    The implementation uses Otsu's method, which assumes a GMM with
-    2 components but uses some heuristic to maximize the variance
-    differences. The input data is shaped into a 2D image for the
-    purpose of evaluating the threshold value.
-
-    Args:
-        data: Pytorch tensor containing the data.
-
-    Returns:
-        Threshold value determined via Otsu's method.
-    """
-    h = 2 ** int(1 + math.log2(data.shape[2]) / 2)
-    fake_img = data.view(h, -1).cpu().numpy()
-    return otsu(fake_img, h)
 
 def enable_test_dropout(model):
     model.eval()

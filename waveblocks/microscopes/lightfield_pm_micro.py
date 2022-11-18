@@ -115,7 +115,7 @@ class Microscope(BaseMicroscope):
     def forward(self, real_object):
 
         # propagate a certain distance
-        psf = self.psf_in
+        psf = self.psf_in.clone()
 
         if self.use_relay:
             # First lens of relay

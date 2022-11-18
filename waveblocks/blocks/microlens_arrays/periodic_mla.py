@@ -14,8 +14,24 @@ logger = logging.getLogger("Waveblocks")
 
 
 class PeriodicMLA(BaseMLA):
-    """Implements and extends the abstract base class for a micro lens array.
-    Contains all necessary methods and variables of a coordinate micro lens array"""
+    """
+    Implements and extends the abstract base class for a micro lens array.
+    Contains all necessary methods and variables of a coordinate micro lens array
+    
+    Example:
+    self.mla = PeriodicMLA(
+    optic_config=self.optic_config, # Forwards the optic config
+    members_to_learn=members_to_learn, # Forwards the members to learn during the optimization process
+    focal_length=optic_config.fm, # Extracts the focal length from the optic config
+    pixel_size=self.sampling_rate, # Specifies the sampling rate
+    image_shape=self.psf_in.shape[2:4], # Defines the output image shape
+    block_shape=optic_config.Nnum, # Defines the amount of lenselet blocks
+    space_variant_psf=self.space_variant_psf, # Specifies if it is a space variant psf
+    block_separation=optic_config.Nnum, # Defines the space separation between blocks
+    block_offset=0,
+    )   
+    
+    """
 
     def __init__(
         self,

@@ -21,8 +21,10 @@ class MLAType(Enum):
 
 
 class BaseMLA(OpticBlock, ABC):
-    """Abstract base class for a micro lens array.
-    Contains all necessary methods and variables of a micro lens array"""
+    """
+    Abstract base class for a micro lens array.
+    Contains all necessary methods and variables of a microlens array
+    """
 
     def __init__(
             self,

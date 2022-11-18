@@ -58,7 +58,7 @@ def create_sphere(radius):
         mask: Array of float describing the sphere.
     """
 
-    shape = 2 * radius + 1   
+    shape = 2 * radius + 1
 
     return wbm.sphere(shape, radius).astype(float)
 
@@ -103,13 +103,9 @@ def create_volume(radius, vx, vy, vz, type, distance=0, coordinates=[], zero_spa
     # Use provided coordinates or create
     if len(coordinates) == 0:
         distance = radius + 1 + distance
-        
+
         # Check if shape of object is smaller than shape of volume
-        if (
-            not object.shape[0] <= volume.shape[0]
-            or not object.shape[1] <= volume.shape[1]
-            or not object.shape[2] <= volume.shape[2]
-        ):
+        if not object.shape[0] <= volume.shape[0] or not object.shape[1] <= volume.shape[1] or not object.shape[2] <= volume.shape[2]:
             raise Exception("shape of object is bigger than volume")
 
         # Cycle through volume and place objects and store center coordiantes of objects
@@ -135,11 +131,7 @@ def create_volume(radius, vx, vy, vz, type, distance=0, coordinates=[], zero_spa
     else:
         for sc in coordinates:
             # Check if object is out of volume
-            if (
-                not sc[0] <= volume.shape[0]
-                or not sc[1] <= volume.shape[1]
-                or not sc[2] <= volume.shape[2]
-            ):
+            if not sc[0] <= volume.shape[0] or not sc[1] <= volume.shape[1] or not sc[2] <= volume.shape[2]:
                 raise Exception("shape of object is bigger than volume")
 
             # Update volume
@@ -151,6 +143,39 @@ def create_volume(radius, vx, vy, vz, type, distance=0, coordinates=[], zero_spa
 
     # Returns volume with objects and a list of all the middle points of the objects.
     return volume, coordinates
+
+
+def create_modulation_volume(vx, vy, vz, depth=0, final_modulation_width=1):
+    """
+    Generates a volume filled with the specified geometric object.
+
+    Args:
+        vx, vy, vz: Size of the volume in x, y, z direction.
+        depth: Specifies the depth at which the modulation image is placed
+        final_modulation_width: The minimum width of the modulation image.
+
+    Returns:
+        volume: Volume containing the objects
+    """
+    if depth >= vz:
+        raise Exception("Invalid depth")
+    volume = np.zeros((vx, vy, vz))
+
+    i = final_modulation_width
+    stripe_len = final_modulation_width
+    next_jump = final_modulation_width * 2
+
+    while i < vx:
+        if i == next_jump:
+            stripe_len += 1
+            i += stripe_len
+            next_jump = i + stripe_len
+            if i + stripe_len >= vx:
+                break
+        else:
+            volume[i, :, depth] = 1
+            i += 1
+    return volume
 
 
 """
@@ -183,10 +208,16 @@ print(sphere_volume.shape)
 print(sphere_volume)
 print(sphere_coordinates)
 
+import matplotlib.pyplot as plt
+sphere_volume = create_modulation_volume(50, 50, 50, depth=25)
+print(sphere_volume.shape)
+print(sphere_volume)
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 x, y, z = sphere_volume.nonzero()
 ax.scatter(x , y , z)
 plt.show()
 
+plt.plot(sphere_volume[:,25,25])
+plt.show()
 """

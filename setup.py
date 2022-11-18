@@ -5,13 +5,13 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="Waveblocks",
-    version="0.0.1",
+    version="0.1.0",
     author="Josue Page Vizcaino, Josef Kamysek, Erik Riedel",
     author_email="pv.josue@gmail.com, josef@kamysek.com, erik.riedel@tum.de",
     description="Waveblocks",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://gitlab.lrz.de/IP/WaveBlocks",
+    url="https://github.com/pvjosue/WaveBlocks",
     classifiers=[
         "Programming Language :: Python :: 3",
     ],

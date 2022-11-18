@@ -3,7 +3,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 import logging
-from operator import itemgetter
 
 # Waveblocks imports
 from waveblocks.blocks.microlens_arrays import BaseMLA
@@ -13,8 +12,25 @@ logger = logging.getLogger("Waveblocks")
 
 
 class CoordinateMLA(BaseMLA):
-    """Implements and extends the abstract base class for a micro lens array.
-    Contains all necessary methods and variables of a coordinate micro lens array"""
+    """
+    Implements and extends the abstract base class for a microlens array.
+    Contains all necessary methods and variables of a coordinate micro lens array
+    
+    Example:
+    
+    self.mla = CoordinateMLA(
+    optic_config=self.optic_config, # Forwards the optic config
+    members_to_learn=members_to_learn, # Forwards the members to learn during the optimization process
+    focal_length=optic_config.fm, # Extracts the focal length from the optic config
+    pixel_size=self.sampling_rate, # Specifies the sampling rate
+    image_shape=self.psf_in.shape[2:4], # Defines the output image shape
+    block_shape=optic_config.Nnum, # Defines the amount of lenselet blocks
+    space_variant_psf=self.space_variant_psf, # Specifies if it is a space variant psf
+    mla_coordinates=self.mla_coordinates, # Allows to manually specify the coordinates of the microlens array
+    mla_shape=self.mla_shape, # Defines the shape of the microlense array
+    )
+    
+    """
 
     def __init__(
         self,
@@ -215,16 +231,3 @@ class CoordinateMLA(BaseMLA):
                 psf[0, z, :, :] = psf[0, z, :, :].clone() * mla
 
             return psf
-
-
-def fit_microlenses_into_image(mla_coordinates, MLAPitch_pixels, image_shape):
-    max_coord_mla = max(mla_coordinates, key = itemgetter(0))[0]
-    max_coord_mla = max(max_coord_mla, max(mla_coordinates, key = itemgetter(1))[1])
-    min_coord_mla = min(mla_coordinates, key = itemgetter(0))[0]
-    min_coord_mla = min(min_coord_mla, min(mla_coordinates, key = itemgetter(1))[1])
-
-    # Arrange the lenslet coordinates such that they fit in the image
-    mla_pixel_scale = (max_coord_mla-min_coord_mla) / (image_shape[0] - 2*MLAPitch_pixels - 1)
-    mla_coordinates = [tuple([int(MLAPitch_pixels + (c[0]-min_coord_mla) / mla_pixel_scale), int(MLAPitch_pixels + (c[1]-min_coord_mla) / mla_pixel_scale)]) for c in mla_coordinates]
-
-    return mla_coordinates

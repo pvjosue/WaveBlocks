@@ -20,8 +20,8 @@ from datetime import datetime
 import pathlib
 
 # Waveblocks imports
-from waveblocks.microscopes.fourier_lightfield_mla_micro import Microscope
-from waveblocks.blocks.opticalConfig import OpticConfig
+from waveblocks.microscopes.lightfield_micro import Microscope
+from waveblocks.blocks.optic_config import OpticConfig
 from waveblocks.blocks.microlens_arrays import MLAType
 import waveblocks.blocks.point_spread_function as psf
 
@@ -35,16 +35,16 @@ nDepths = len(depths)
 vol_xy_size = 251
 
 # Configuration parameters
-lr = 5e-2
+lr = 1e-2
 lrNet = 5e-4
 net_weight = 5e-6
 maxVolume = 1
-nEpochs = 2
+nEpochs = 20
 file_path = pathlib.Path(__file__).parent.absolute()
 output_path = str(file_path.parent.joinpath("runs/runs_ResBlock_newPSF/")) + "/"
 data_path = file_path.parent.joinpath("data")
 prefix = "_ResBlock3DeepConv7_"
-plot = False
+plot = True
 # Fetch Device to use
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -118,17 +118,16 @@ _, psf_in = PSF.forward(
 )
 
 # Create a Microscope
-WBMicro = Microscope(opticalConfig=opticalConfig, members_to_learn=[], psf_in=psf_in).to(
+WBMicro = Microscope(optic_config=opticalConfig, members_to_learn=[], psf_in=psf_in).to(
     device
 )
 # WBMicro.mla2sensor = WBMicro.mla2sensor.to("cuda:1")
 WBMicro.eval()
 
 # Load GT LF image
-GT_LF_img = WBMicro(
-    GT_volume.detach()
-).detach()  # ;torch.tensor(psfFile.root.LFImage, dtype=torch.float32, requires_grad=True).unsqueeze(0).unsqueeze(0).to(device)
-
+GT_LF_img = WBMicro(GT_volume.detach())
+GT_LF_img = GT_LF_img.detach()
+GT_LF_img.requires_grad = False
 # Initial Volume
 curr_volume = torch.autograd.Variable(
     maxVolume * torch.ones(GT_volume.shape, requires_grad=True, device=device),
@@ -193,6 +192,7 @@ predictions = []
 for ep in range(nEpochs):
     plt.clf()
     optimizer.zero_grad()
+    WBMicro.zero_grad()
     # with autocast(enabled=False):
     # ReLU as non negativity constraing
     currImg = WBMicro(curr_volume)
@@ -218,83 +218,83 @@ for ep in range(nEpochs):
     # curr_volume.grad.data.zero_()
     # WBMicro.zero_grad()
 
-    # Store errors
+    # # Store errors
     errors.append(curr_error)
 
-    print(str(ep) + " MSE: " + str(curr_error))
+    # print(str(ep) + " MSE: " + str(curr_error))
 
-    writer.add_scalar("error", curr_error, ep)
-    writer.add_scalar("full error", diff.item(), ep)
-    # local_volumes[0,...].unsqueeze(0).sum(3).cpu().data.detach(), normalize=True, scale_each=True)
-    writer.add_image(
-        "GT_vol",
-        tv.utils.make_grid(GT_volume.sum(1).cpu(), normalize=True, scale_each=True),
-        ep,
-    )
-    currProj = GT_volume.sum(2).detach().cpu().unsqueeze(0)
-    currProj = torch.nn.functional.interpolate(
-        currProj, [currProj.shape[2] * 15, currProj.shape[3]], mode="nearest"
-    )
-    writer.add_image(
-        "GT_vol_xz", tv.utils.make_grid(currProj, normalize=True, scale_each=True), ep
-    )
-    writer.add_image(
-        "prediction",
-        tv.utils.make_grid(
-            curr_volume.sum(1).detach().cpu(), normalize=True, scale_each=True
-        ),
-        ep,
-    )
-    currProj = curr_volume.sum(2).detach().cpu().unsqueeze(0)
-    currProj = torch.nn.functional.interpolate(
-        currProj, [currProj.shape[2] * 15, currProj.shape[3]], mode="nearest"
-    )
-    writer.add_image(
-        "prediction_xz",
-        tv.utils.make_grid(currProj[0], normalize=True, scale_each=True),
-        ep,
-    )
-    currProj = regularization.sum(2).detach().cpu().unsqueeze(0)
-    currProj = torch.nn.functional.interpolate(
-        currProj, [currProj.shape[2] * 15, currProj.shape[3]], mode="nearest"
-    )
-    writer.add_image(
-        "regularization_xz",
-        tv.utils.make_grid(currProj[0], normalize=True, scale_each=True),
-        ep,
-    )
-    writer.add_image(
-        "regularization",
-        tv.utils.make_grid(
-            regularization.sum(1).detach().cpu(), normalize=True, scale_each=True
-        ),
-        ep,
-    )
-    writer.add_image(
-        "GT_img",
-        tv.utils.make_grid(
-            GT_LF_img.sum(1).detach().cpu(), normalize=True, scale_each=True
-        ),
-        ep,
-    )
-    writer.add_image(
-        "predicted_img",
-        tv.utils.make_grid(
-            currImg.sum(1).detach().cpu(), normalize=True, scale_each=True
-        ),
-        ep,
-    )
+    # writer.add_scalar("error", curr_error, ep)
+    # writer.add_scalar("full error", diff.item(), ep)
+    # # local_volumes[0,...].unsqueeze(0).sum(3).cpu().data.detach(), normalize=True, scale_each=True)
+    # writer.add_image(
+    #     "GT_vol",
+    #     tv.utils.make_grid(GT_volume.sum(1).cpu(), normalize=True, scale_each=True),
+    #     ep,
+    # )
+    # currProj = GT_volume.sum(2).detach().cpu().unsqueeze(0)
+    # currProj = torch.nn.functional.interpolate(
+    #     currProj, [currProj.shape[2] * 15, currProj.shape[3]], mode="nearest"
+    # )
+    # writer.add_image(
+    #     "GT_vol_xz", tv.utils.make_grid(currProj, normalize=True, scale_each=True), ep
+    # )
+    # writer.add_image(
+    #     "prediction",
+    #     tv.utils.make_grid(
+    #         curr_volume.sum(1).detach().cpu(), normalize=True, scale_each=True
+    #     ),
+    #     ep,
+    # )
+    # currProj = curr_volume.sum(2).detach().cpu().unsqueeze(0)
+    # currProj = torch.nn.functional.interpolate(
+    #     currProj, [currProj.shape[2] * 15, currProj.shape[3]], mode="nearest"
+    # )
+    # writer.add_image(
+    #     "prediction_xz",
+    #     tv.utils.make_grid(currProj[0], normalize=True, scale_each=True),
+    #     ep,
+    # )
+    # currProj = regularization.sum(2).detach().cpu().unsqueeze(0)
+    # currProj = torch.nn.functional.interpolate(
+    #     currProj, [currProj.shape[2] * 15, currProj.shape[3]], mode="nearest"
+    # )
+    # writer.add_image(
+    #     "regularization_xz",
+    #     tv.utils.make_grid(currProj[0], normalize=True, scale_each=True),
+    #     ep,
+    # )
+    # writer.add_image(
+    #     "regularization",
+    #     tv.utils.make_grid(
+    #         regularization.sum(1).detach().cpu(), normalize=True, scale_each=True
+    #     ),
+    #     ep,
+    # )
+    # writer.add_image(
+    #     "GT_img",
+    #     tv.utils.make_grid(
+    #         GT_LF_img.sum(1).detach().cpu(), normalize=True, scale_each=True
+    #     ),
+    #     ep,
+    # )
+    # writer.add_image(
+    #     "predicted_img",
+    #     tv.utils.make_grid(
+    #         currImg.sum(1).detach().cpu(), normalize=True, scale_each=True
+    #     ),
+    #     ep,
+    # )
 
-    if ep % 25 == 0:
-        torch.save(
-            {
-                "epoch": ep,
-                "model_state_dict": refine_net.state_dict(),
-                "optimizer_state_dict": optimizer.state_dict(),
-                "loss": curr_error,
-            },
-            save_folder + "/model_" + str(ep),
-        )
+    # if ep % 25 == 0:
+    #     torch.save(
+    #         {
+    #             "epoch": ep,
+    #             "model_state_dict": refine_net.state_dict(),
+    #             "optimizer_state_dict": optimizer.state_dict(),
+    #             "loss": curr_error,
+    #         },
+    #         save_folder + "/model_" + str(ep),
+    #     )
     if plot:
         # Display results
         plt.subplot(3, 2, 2)
@@ -347,4 +347,5 @@ for ep in range(nEpochs):
         frame1.axes.yaxis.set_ticklabels([])
 
         plt.pause(0.1)
+        plt.savefig('output.png')
         plt.show()

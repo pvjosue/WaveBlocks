@@ -1,7 +1,8 @@
 """
 Example script of WaveBlocks framework.
 This script uses a Fourier Light Field (FLF) microscope with a Microlens Array (MLA)
-The aim of this experiment is to look at the functionality of the FLF microscope with a MLA
+
+The aim of this experiment is to demonstrate using the FLF microscope with a custom MLA defined by coordinates.
 Therefore we forward project a volume of a fish, generating the GT_LF_image.
 
 # Erik Riedel & Josef Kamysek

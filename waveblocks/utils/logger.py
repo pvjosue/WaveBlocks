@@ -4,6 +4,11 @@ from colorama import Fore
 
 
 class WaveblocksFormatter(logging.Formatter):
+    """
+    Custom formatter for our logger. 
+    It logs events at different levels in the code as well as colors them.
+    """    
+    
     format_simple = "Waveblocks - %(levelname)s - %(message)s"
     format_advanced = (
         "Waveblocks - %(levelname)s - %(message)s (%(filename)s:%(lineno)d)"
@@ -22,6 +27,23 @@ class WaveblocksFormatter(logging.Formatter):
         return formatter.format(record)
 
 class MyLogger(getLoggerClass()):
+    """
+    Custom logger for Waveblocks. 
+    Has predefined logging levels for e.g. microlens arrays or the reconstruction algorithms.
+    These values can also be overridden in the sample scripts. It allows you to specify the desired logging levels yourself.
+    
+    Example:
+    
+    logger = logging.getLogger("Waveblocks")
+    waveblocks.set_logging(
+        debug_mla=False,
+        debug_microscope=False,
+        debug_richardson_lucy=False,
+        debug_optimizer=False,
+    )
+
+    """
+    
     def __init__(self, name, level=NOTSET):
         super().__init__(name, level)
         self.debug_mla = False

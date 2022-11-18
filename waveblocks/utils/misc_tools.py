@@ -1,20 +1,19 @@
 # Python imports
 from math import exp
 import argparse
-import os,glob
+import os
 import sys
+import tables
+import numpy as np
+import os,glob
+from PIL import Image
 
 # Third party libraries imports
 from torch.autograd import Variable
 import torch
 import torch.nn as nn
 import torch.nn.functional as f
-from PIL import Image
-import tables
-from tifffile import imread
-import tifffile
-import numpy as np
-import math 
+
 
 class Dataset(object):
     def __init__(
@@ -257,220 +256,6 @@ class Dataset(object):
     def __shape__(self):
         return self.VolDims, self.LFDims
 
-
-class MicroscopeSimulatorDataset(torch.utils.data.Dataset):
-    def __init__(self, microscope, vols_path, volumes_to_load=[], volume_reshape_size=[], volume_ths=0.15, vol_norm='max', pre_simulate=True):
-        self.microscope = microscope
-        self.device = microscope.get_device()
-        self.simulated = pre_simulate
-
-        if len(volumes_to_load) == 0:
-            self.all_files = sorted(glob.glob(vols_path)) 
-        else:
-            self.all_files = [sorted(glob.glob(vols_path))[volumes_to_load[i]] for i in range(len(volumes_to_load))]
-
-        # How many samples?
-        self.n_samples = len(self.all_files)
-
-        # Load a single volume and create a proper storage
-        vol_sample = load_process_volume(self.all_files[0], volume_reshape_size, volume_ths, norm=vol_norm)
-        # Create storage
-        self.volumes = torch.zeros(self.n_samples,*list(vol_sample.shape[1:]))
-
-        # Create image storage
-        img_sample = microscope(vol_sample.to(self.device))
-        self.images = torch.zeros(self.n_samples,*list(img_sample.shape[1:]))
-
-        for n_sample in range(self.n_samples):
-            self.volumes[n_sample,...] = load_process_volume(self.all_files[0], volume_reshape_size, volume_ths, norm=vol_norm, channel_order='yxz')[0,...]
-            if pre_simulate:
-                self.images[n_sample,...] = microscope(self.volumes[n_sample,...].unsqueeze(0).to(self.device))[0,...]
-
-        return
-    def __len__(self):
-        'Denotes the total number of samples'
-        return self.n_samples
-    def get_n_depths(self):
-        return self.volumes.shape[1]
-
-    def __getitem__(self, index):
-        if not self.simulated:
-            image = self.microscope(self.volumes[index,...].unsqueeze(0).to(self.device))[0,...]
-        else:
-            image = self.images[index,...]
-        
-        return image, self.volumes[index,...],0
-
-def convert3Dto2DTiles(x, lateralTile):
-    nDepths = x.shape[-1]
-    volSides = x.shape[-3:-1]
-    nChans = x.shape[1]
-    verticalTile = (
-        x.permute(0, 1, 4, 2, 3)
-        .contiguous()
-        .view(-1, nChans, volSides[0] * nDepths, volSides[1])
-    )
-    currPred = verticalTile[:, :, 0 : volSides[0] * lateralTile[0], :]
-    for k in range(1, lateralTile[1]):
-        currPred = torch.cat(
-            (
-                currPred,
-                verticalTile[
-                    :,
-                    :,
-                    (lateralTile[0] * volSides[0] * k) : (
-                        lateralTile[0] * volSides[0] * (k + 1)
-                    ),
-                    :,
-                ],
-            ),
-            dim=3,
-        )
-    return currPred
-
-def convert4Dto3DTiles(x, lateralTile):
-    nDepths = x.shape[-1]
-    volSide = x.shape[-2]
-    nSamples = x.shape[0]
-    verticalTile = (
-        x.permute(1, 0, 2, 3).contiguous().view(volSide, volSide * nSamples, nDepths)
-    )
-    currPred = verticalTile[:, 0 : volSide * lateralTile[0], :]
-    for k in range(1, lateralTile[1]):
-        currPred = torch.cat(
-            (
-                currPred,
-                verticalTile[
-                    :,
-                    (lateralTile[0] * volSide * k) : (
-                        lateralTile[0] * volSide * (k + 1)
-                    ),
-                    :,
-                ],
-            ),
-            dim=0,
-        )
-    return currPred
-
-def LF2Spatial(xIn, LFSize):
-    xShape = xIn.shape
-    x = xIn
-    if xIn.ndimension() == 6:
-        x = (
-            xIn.permute((0, 1, 4, 2, 5, 3))
-            .contiguous()
-            .view(xShape[0], xShape[1], LFSize[0] * LFSize[2], LFSize[1] * LFSize[3])
-        )
-    if xIn.ndimension() == 4:
-        x = (
-            xIn.view(xShape[0], xShape[1], LFSize[2], LFSize[0], LFSize[3], LFSize[1])
-            .permute((0, 1, 3, 5, 2, 4))
-            .contiguous()
-        )
-    return x
-
-def LF2Angular(xIn, LFSize):
-    xShape = xIn.shape
-    x = xIn
-    if xIn.ndimension() == 6:
-        x = (
-            xIn.permute((0, 1, 2, 4, 3, 5))
-            .contiguous()
-            .view(xShape[0], xShape[1], LFSize[0] * LFSize[2], LFSize[1] * LFSize[3])
-        )
-    if xIn.ndimension() == 4:
-        x = (
-            xIn.view(xShape[0], xShape[1], LFSize[0], LFSize[2], LFSize[1], LFSize[3])
-            .permute((0, 1, 2, 4, 3, 5))
-            .contiguous()
-        )
-    return x
-
-def weights_init(m):
-    if isinstance(m, nn.Conv2d):
-        nn.init.constant_(m.weight.data, 1 / len(m.weight.data))
-    if isinstance(m, nn.ConvTranspose2d):
-        nn.init.constant_(m.weight.data, 1 / len(m.weight.data))
-
-def getThreads():
-    if sys.platform == "win32":
-        return int(os.environ["NUMBER_OF_PROCESSORS"])
-    else:
-        return int(os.popen("grep -c cores /proc/cpuinfo").read())
-
-def str2bool(v):
-    if isinstance(v, bool):
-        return v
-    if v.lower() in ("yes", "true", "t", "y", "1"):
-        return True
-    elif v.lower() in ("no", "false", "f", "n", "0"):
-        return False
-    else:
-        raise argparse.ArgumentTypeError("Boolean value expected.")
-
-def imadjust(x, a, b, c, d, gamma=1):
-    # Similar to imadjust in MATLAB.
-    # Converts an image range from [a,b] to [c,d].
-    # The Equation of a line can be used for this transformation:
-    #   y=((d-c)/(b-a))*(x-a)+c
-    # However, it is better to use a more generalized equation:
-    #   y=((x-a)/(b-a))^gamma*(d-c)+c
-    # If gamma is equal to 1, then the line equation is used.
-    # When gamma is not equal to 1, then the transformation is not linear.
-
-    y = (((x - a) / (b - a)) ** gamma) * (d - c) + c
-    mask = (y > 0).float()
-    y = torch.mul(y, mask)
-    return y
-
-def gaussian(window_size, sigma):
-    gauss = torch.Tensor(
-        [
-            exp(-((x - window_size // 2) ** 2) / float(2 * sigma ** 2))
-            for x in range(window_size)
-        ]
-    )
-    return gauss / gauss.sum()
-
-def create_window(window_size, channel):
-    _1D_window = gaussian(window_size, 1.5).unsqueeze(1)
-    _2D_window = _1D_window.mm(_1D_window.t()).float().unsqueeze(0).unsqueeze(0)
-    window = Variable(
-        _2D_window.expand(channel, 1, window_size, window_size).contiguous()
-    )
-    return window
-
-def _ssim(img1, img2, window, window_size, channel, size_average=True):
-    mu1 = f.conv2d(img1, window, padding=window_size // 2, groups=channel)
-    mu2 = f.conv2d(img2, window, padding=window_size // 2, groups=channel)
-
-    mu1_sq = mu1.pow(2)
-    mu2_sq = mu2.pow(2)
-    mu1_mu2 = mu1 * mu2
-
-    sigma1_sq = (
-        f.conv2d(img1 * img1, window, padding=window_size // 2, groups=channel) - mu1_sq
-    )
-    sigma2_sq = (
-        f.conv2d(img2 * img2, window, padding=window_size // 2, groups=channel) - mu2_sq
-    )
-    sigma12 = (
-        f.conv2d(img1 * img2, window, padding=window_size // 2, groups=channel)
-        - mu1_mu2
-    )
-
-    C1 = 0.01 ** 2
-    C2 = 0.03 ** 2
-
-    ssim_map = ((2 * mu1_mu2 + C1) * (2 * sigma12 + C2)) / (
-        (mu1_sq + mu2_sq + C1) * (sigma1_sq + sigma2_sq + C2)
-    )
-
-    if size_average:
-        return ssim_map.mean()
-    else:
-        return ssim_map.mean(1).mean(1).mean(1)
-
 class SSIM(torch.nn.Module):
     def __init__(self, window_size=11, size_average=True):
         super(SSIM, self).__init__()
@@ -534,6 +319,7 @@ def read_tiff_stack(filename, out_datatype=np.float16):
             tiffarray[:,:,i] = img.astype(out_datatype)
         return torch.from_numpy(tiffarray)
 
+
 def load_process_volume(data_path, volume_new_size=[], dark_current_ths=0.15, norm='max', channel_order='zxy', device="cpu"):
     # Check if data_path is a volume or a path
     if isinstance(data_path, str):
@@ -568,14 +354,278 @@ def load_process_volume(data_path, volume_new_size=[], dark_current_ths=0.15, no
         out_volume = (out_volume-mean)/std
 
     return out_volume.type_as(gt_volume)
-    
-def volume_2_projections(vol, proj_type=torch.max, scaling_factors=[1,1,2], depths_in_ch=False):
+
+
+class MicroscopeSimulatorDataset(torch.utils.data.Dataset):
+    def __init__(self, microscope, vols_path, volumes_to_load=[], volume_reshape_size=[], volume_ths=0.15, vol_norm='max', pre_simulate=True):
+        self.microscope = microscope
+        self.device = microscope.get_device()
+        self.simulated = pre_simulate
+
+        if len(volumes_to_load) == 0:
+            self.all_files = sorted(glob.glob(vols_path)) 
+        else:
+            self.all_files = [sorted(glob.glob(vols_path))[volumes_to_load[i]] for i in range(len(volumes_to_load))]
+
+        # How many samples?
+        self.n_samples = len(self.all_files)
+
+        # Load a single volume and create a proper storage
+        vol_sample = load_process_volume(self.all_files[0], volume_reshape_size, volume_ths, norm=vol_norm)
+        # Create storage
+        self.volumes = torch.zeros(self.n_samples,*list(vol_sample.shape[1:]))
+
+        # Create image storage
+        img_sample = microscope(vol_sample.to(self.device))
+        self.images = torch.zeros(self.n_samples,*list(img_sample.shape[1:]))
+
+        for n_sample in range(self.n_samples):
+            self.volumes[n_sample,...] = load_process_volume(self.all_files[0], volume_reshape_size, volume_ths, norm=vol_norm, channel_order='yxz')[0,...]
+            if pre_simulate:
+                self.images[n_sample,...] = microscope(self.volumes[n_sample,...].unsqueeze(0).to(self.device))[0,...]
+
+        return
+    def __len__(self):
+        'Denotes the total number of samples'
+        return self.n_samples
+    def get_n_depths(self):
+        return self.volumes.shape[1]
+
+    def __getitem__(self, index):
+        if not self.simulated:
+            image = self.microscope(self.volumes[index,...].unsqueeze(0).to(self.device))[0,...]
+        else:
+            image = self.images[index,...]
+        
+        return image, self.volumes[index,...],0
+
+
+def convert3Dto2DTiles(x, lateralTile):
+    nDepths = x.shape[-1]
+    volSides = x.shape[-3:-1]
+    nChans = x.shape[1]
+    verticalTile = (
+        x.permute(0, 1, 4, 2, 3)
+        .contiguous()
+        .view(-1, nChans, volSides[0] * nDepths, volSides[1])
+    )
+    currPred = verticalTile[:, :, 0 : volSides[0] * lateralTile[0], :]
+    for k in range(1, lateralTile[1]):
+        currPred = torch.cat(
+            (
+                currPred,
+                verticalTile[
+                    :,
+                    :,
+                    (lateralTile[0] * volSides[0] * k) : (
+                        lateralTile[0] * volSides[0] * (k + 1)
+                    ),
+                    :,
+                ],
+            ),
+            dim=3,
+        )
+    return currPred
+
+
+def convert4Dto3DTiles(x, lateralTile):
+    nDepths = x.shape[-1]
+    volSide = x.shape[-2]
+    nSamples = x.shape[0]
+    verticalTile = (
+        x.permute(1, 0, 2, 3).contiguous().view(volSide, volSide * nSamples, nDepths)
+    )
+    currPred = verticalTile[:, 0 : volSide * lateralTile[0], :]
+    for k in range(1, lateralTile[1]):
+        currPred = torch.cat(
+            (
+                currPred,
+                verticalTile[
+                    :,
+                    (lateralTile[0] * volSide * k) : (
+                        lateralTile[0] * volSide * (k + 1)
+                    ),
+                    :,
+                ],
+            ),
+            dim=0,
+        )
+    return currPred
+
+
+def LF2Spatial(xIn, LFSize):
+    xShape = xIn.shape
+    x = xIn
+    if xIn.ndimension() == 6:
+        x = (
+            xIn.permute((0, 1, 4, 2, 5, 3))
+            .contiguous()
+            .view(xShape[0], xShape[1], LFSize[0] * LFSize[2], LFSize[1] * LFSize[3])
+        )
+    if xIn.ndimension() == 4:
+        x = (
+            xIn.view(xShape[0], xShape[1], LFSize[2], LFSize[0], LFSize[3], LFSize[1])
+            .permute((0, 1, 3, 5, 2, 4))
+            .contiguous()
+        )
+    return x
+
+
+def LF2Angular(xIn, LFSize):
+    xShape = xIn.shape
+    x = xIn
+    if xIn.ndimension() == 6:
+        x = (
+            xIn.permute((0, 1, 2, 4, 3, 5))
+            .contiguous()
+            .view(xShape[0], xShape[1], LFSize[0] * LFSize[2], LFSize[1] * LFSize[3])
+        )
+    if xIn.ndimension() == 4:
+        x = (
+            xIn.view(xShape[0], xShape[1], LFSize[0], LFSize[2], LFSize[1], LFSize[3])
+            .permute((0, 1, 2, 4, 3, 5))
+            .contiguous()
+        )
+    return x
+
+
+def weights_init(m):
+    if isinstance(m, nn.Conv2d):
+        nn.init.constant_(m.weight.data, 1 / len(m.weight.data))
+    if isinstance(m, nn.ConvTranspose2d):
+        nn.init.constant_(m.weight.data, 1 / len(m.weight.data))
+
+
+def getThreads():
+    if sys.platform == "win32":
+        return int(os.environ["NUMBER_OF_PROCESSORS"])
+    else:
+        return int(os.popen("grep -c cores /proc/cpuinfo").read())
+
+
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ("yes", "true", "t", "y", "1"):
+        return True
+    elif v.lower() in ("no", "false", "f", "n", "0"):
+        return False
+    else:
+        raise argparse.ArgumentTypeError("Boolean value expected.")
+
+
+def imadjust(x, a, b, c, d, gamma=1):
+    # Similar to imadjust in MATLAB.
+    # Converts an image range from [a,b] to [c,d].
+    # The Equation of a line can be used for this transformation:
+    #   y=((d-c)/(b-a))*(x-a)+c
+    # However, it is better to use a more generalized equation:
+    #   y=((x-a)/(b-a))^gamma*(d-c)+c
+    # If gamma is equal to 1, then the line equation is used.
+    # When gamma is not equal to 1, then the transformation is not linear.
+
+    y = (((x - a) / (b - a)) ** gamma) * (d - c) + c
+    mask = (y > 0).float()
+    y = torch.mul(y, mask)
+    return y
+
+
+######## SSIM
+
+
+def gaussian(window_size, sigma):
+    gauss = torch.Tensor(
+        [
+            exp(-((x - window_size // 2) ** 2) / float(2 * sigma ** 2))
+            for x in range(window_size)
+        ]
+    )
+    return gauss / gauss.sum()
+
+
+def create_window(window_size, channel):
+    _1D_window = gaussian(window_size, 1.5).unsqueeze(1)
+    _2D_window = _1D_window.mm(_1D_window.t()).float().unsqueeze(0).unsqueeze(0)
+    window = Variable(
+        _2D_window.expand(channel, 1, window_size, window_size).contiguous()
+    )
+    return window
+
+
+def _ssim(img1, img2, window, window_size, channel, size_average=True):
+    mu1 = f.conv2d(img1, window, padding=window_size // 2, groups=channel)
+    mu2 = f.conv2d(img2, window, padding=window_size // 2, groups=channel)
+
+    mu1_sq = mu1.pow(2)
+    mu2_sq = mu2.pow(2)
+    mu1_mu2 = mu1 * mu2
+
+    sigma1_sq = (
+        f.conv2d(img1 * img1, window, padding=window_size // 2, groups=channel) - mu1_sq
+    )
+    sigma2_sq = (
+        f.conv2d(img2 * img2, window, padding=window_size // 2, groups=channel) - mu2_sq
+    )
+    sigma12 = (
+        f.conv2d(img1 * img2, window, padding=window_size // 2, groups=channel)
+        - mu1_mu2
+    )
+
+    C1 = 0.01 ** 2
+    C2 = 0.03 ** 2
+
+    ssim_map = ((2 * mu1_mu2 + C1) * (2 * sigma12 + C2)) / (
+        (mu1_sq + mu2_sq + C1) * (sigma1_sq + sigma2_sq + C2)
+    )
+
+    if size_average:
+        return ssim_map.mean()
+    else:
+        return ssim_map.mean(1).mean(1).mean(1)
+
+
+class SSIM(torch.nn.Module):
+    def __init__(self, window_size=11, size_average=True):
+        super(SSIM, self).__init__()
+        self.window_size = window_size
+        self.size_average = size_average
+        self.channel = 1
+        self.window = create_window(window_size, self.channel)
+
+    def forward(self, img1, img2):
+        (_, channel, _, _) = img1.size()
+
+        if channel == self.channel and self.window.data.type() == img1.data.type():
+            window = self.window
+        else:
+            window = create_window(self.window_size, channel)
+
+            if img1.is_cuda:
+                window = window.cuda(img1.get_device())
+            window = window.type_as(img1)
+
+            self.window = window
+            self.channel = channel
+
+        return _ssim(img1, img2, window, self.window_size, channel, self.size_average)
+
+
+def ssim(img1, img2, window_size=11, size_average=True):
+    (_, channel, _, _) = img1.size()
+    window = create_window(window_size, channel)
+
+    if img1.is_cuda:
+        window = window.cuda(img1.get_device())
+    window = window.type_as(img1)
+
+    return _ssim(img1, img2, window, window_size, channel, size_average)
+
+
+def volume_2_projections(vol, proj_type=torch.max, depths_in_ch=False):
     # vol = vol.detach()
     if depths_in_ch:
         vol = vol.permute(0,2,3,1).unsqueeze(1)
-    vol_size = list(vol.shape)
-    vol_size[2:] = [vol.shape[i+2] * scaling_factors[i] for i in range(len(scaling_factors))]
-
+    vol_size = vol.shape
     if proj_type is torch.max or proj_type is torch.min:
         x_projection, _ = proj_type(vol.float().cpu(), dim=2)
         y_projection, _ = proj_type(vol.float().cpu(), dim=3)
@@ -590,8 +640,8 @@ def volume_2_projections(vol, proj_type=torch.max, scaling_factors=[1,1,2], dept
     )
 
     out_img[:, :, : vol_size[2], : vol_size[3]] = z_projection
-    out_img[:, :, vol_size[2] :, : vol_size[3]] = f.interpolate(x_projection.permute(0, 1, 3, 2), size=[vol_size[-1],vol_size[-3]])
-    out_img[:, :, : vol_size[2], vol_size[3] :] = f.interpolate(y_projection, size=[vol_size[2],vol_size[4]])
+    out_img[:, :, vol_size[2] :, : vol_size[3]] = x_projection.permute(0, 1, 3, 2)
+    out_img[:, :, : vol_size[2], vol_size[3] :] = y_projection
 
     # Draw white lines
     out_img[:, :, vol_size[2], ...] = z_projection.max()
@@ -599,83 +649,29 @@ def volume_2_projections(vol, proj_type=torch.max, scaling_factors=[1,1,2], dept
 
     return out_img
 
+# Loss function to noramlize two point spread functions to each other, depthwhise
+def normalize_PSF_pair(psf_in, psf_gt, norm_to_use=torch.sum, chans_to_norm=[]):
+    # psf_in: the psf to normalize
+    # psf_gt: the psf of reference
+    # chans_to_norm: which channels to norm
+    # if no psf_gt is provided, every channel will be normalized to norm_to_use(ch)=1
 
-def extract_views(image, lenslet_coords, subimage_shape, debug=False):
-        # print(str(image.shape))
-        half_subimg_shape = [subimage_shape[0]//2,subimage_shape[1]//2]
-        n_lenslets = len(lenslet_coords)
-        stacked_views = torch.zeros(size=[image.shape[0], n_lenslets, subimage_shape[0], subimage_shape[1]], device=image.device, dtype=image.dtype)
-        
-        if debug:
-            debug_image = image.detach().clone()
-            max_img = image.float().cpu().max()
-        for nLens in range(n_lenslets):
-            # Fetch coordinates
-            currCoords = lenslet_coords[nLens]
-            if debug:
-                debug_image[:,:,currCoords[0]-2:currCoords[0]+2,currCoords[1]-2:currCoords[1]+2] = max_img
-            # Grab patches
-            lower_bounds = [currCoords[0]-half_subimg_shape[0], currCoords[1]-half_subimg_shape[1]]
-            lower_bounds = [max(lower_bounds[kk],0) for kk in range(2)]
-            currPatch = image[:,0,lower_bounds[0] : currCoords[0]+half_subimg_shape[0], lower_bounds[1] : currCoords[1]+half_subimg_shape[1]]
-            stacked_views[:,nLens,-currPatch.shape[1]:,-currPatch.shape[2]:] = currPatch
-        
-        if debug:
-            import matplotlib.pyplot as plt
-            plt.imshow(debug_image[0,0,...].float().cpu().detach().numpy())
-            plt.show()
-        return stacked_views
+    n_chans = psf_in.shape[1]
+    if len(chans_to_norm)==0:
+        chans_to_norm = [0,]+list(range(2, psf_in.dim()))
 
-def crop_volume_center(volume, volume_shape):
-    vol_pred_crop_width = volume_shape[2]
-    vol_pred_crop_height = volume_shape[3]
-    vol_pred_center_x = math.floor(volume.shape[2] / 2)
-    vol_pred_center_y = math.floor(volume.shape[3] / 2)
-    volume = volume[
-        :,
-        :,
-        vol_pred_center_x
-        - math.floor(vol_pred_crop_width / 2) : vol_pred_center_x
-        + math.ceil(vol_pred_crop_width / 2),
-        vol_pred_center_y
-        - math.floor(vol_pred_crop_height / 2) : vol_pred_center_y
-        + math.ceil(vol_pred_crop_height / 2),
-    ]
-    return volume
+    channelwise_norm = torch.ones([psf_in.shape[0]])
 
-
-def log_likelehood(gt_img, forward_img, reg=False):
-    if reg:
-        reg = forward_img.abs()
-    else:
-        reg = 0
-    return (forward_img - gt_img * (1e-8 + forward_img).log() + reg).mean()
-
-
-def add_weight_decay(net, l2_value, skip_list=()):
-    decay, no_decay = [], []
-    for name, param in net.named_parameters():
-        if not param.requires_grad: continue # frozen weights
-        if len(param.shape) == 1 or name.endswith(".bias") or name in skip_list: no_decay.append(param)
-        else: decay.append(param)
-    return [{'params': no_decay, 'weight_decay': 0.}, {'params': decay, 'weight_decay': l2_value}]
-
-
-def create_image_piramid(images, norm=np.sum):
-    rows, cols = images[0].shape
-    rows2, cols2 = images[1].shape
-    torch2np = lambda i : i[0,...].permute(1,2,0).cpu().detach().numpy()
-    composite_image = np.zeros((4*rows+rows2, 4*cols + cols2), dtype=np.float)
-    # permute as input is b,c,x,y and we want x,y,c
-    composite_image[:rows, :cols] = (images[0])
-    i_row = 0
-    for ix,p in enumerate(images[1:]):
-        n_rows, n_cols = p.shape
-
-        if norm != None:
-            p = p/norm(p)
-        
-        composite_image[i_row:i_row + n_rows, cols:cols + n_cols] = (p)
-        i_row += n_rows
+    # if a reference was provided, update the norm per channel
+    if torch.is_tensor(psf_gt):
+        channelwise_norm = norm_to_use(psf_gt,chans_to_norm, keepdim=True)
     
-    return composite_image[:i_row,:cols+cols2]
+    channelwise_norm_psf_in = norm_to_use(psf_in,chans_to_norm, keepdim=True)
+
+    # normalize psf_in
+    psf_out = psf_in / channelwise_norm_psf_in
+
+    # apply new normalization
+    psf_out = psf_out * channelwise_norm
+
+    return psf_out

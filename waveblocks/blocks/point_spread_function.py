@@ -14,7 +14,7 @@ class PSF(OpticBlock):
     """Class that coputes the PSF of a point source based on the Fast Gibson Lanni computation"""
 
     # https://github.com/MicroscPSF/MicroscPSF-Py
-    def __init__(self, optic_config, members_to_learn):
+    def __init__(self, optic_config, members_to_learn=[]):
         super(PSF, self).__init__(
             optic_config=optic_config, members_to_learn=members_to_learn
         )

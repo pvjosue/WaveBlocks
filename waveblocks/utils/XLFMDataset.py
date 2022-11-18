@@ -2,8 +2,7 @@ import torch
 from torch.utils import data
 import torch.nn.functional as F
 import csv
-import nrrd
-import glob, os
+import glob
 from PIL import Image
 from torchvision.transforms import ToTensor
 import torchvision as tv
@@ -14,10 +13,9 @@ from tifffile import imread
 import sys
 import torch
 import matplotlib.pyplot as plt
-from waveblocks.utils.misc_tools import crop_volume_center
 
 
-import waveblocks.utils.pytorch_shot_noise as pytorch_shot_noise
+import waveblocks.utils.pytorch_shot_noise
 from waveblocks.utils.misc_utils import *
 
 
@@ -269,17 +267,6 @@ class XLFMDatasetFull(data.Dataset):
         
         return vol[index]
 
-    def load_single_image_volume(self,index):
-        # Select sample
-        currVolInfo = nrrd.read(self.all_files[index])
-        currVol = torch.from_numpy(currVolInfo[0].astype(float))
-        currFileName = os.path.basename(self.all_files[index])[:-4]
-        currImg = Image.open(self.data_path + '/XLFM_Image_' + currFileName + "tif")
-        image = ToTensor()(currImg)
-        stacked_views = extract_views(image[0,...], self.lenslet_coords, self.subimage_shape)
-
-        return stacked_views,currVol.permute(2,0,1),image
-
     @staticmethod
     def extract_views(image, lenslet_coords, subimage_shape, debug=False):
         # print(str(image.shape))
@@ -334,7 +321,7 @@ class XLFMDatasetFull(data.Dataset):
             curr_img_stack = signal_power * curr_img_stack / curr_max
                 
             for kk in range(curr_img_stack.shape[0]):
-                curr_img_stack[kk,...] = pytorch_shot_noise.add_camera_noise(curr_img_stack[kk,...])
+                curr_img_stack[kk,...] = waveblocks.utils.pytorch_shot_noise.pytorch_shot_noise.add_camera_noise(curr_img_stack[kk,...])
             curr_img_stack = curr_max * curr_img_stack.float() / signal_power
             self.stacked_views[nImg,...] = curr_img_stack
         print("Added noise to " + str(self.stacked_views.shape[0]) + " images.")

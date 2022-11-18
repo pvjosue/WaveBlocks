@@ -6,6 +6,7 @@ from enum import Enum
 import numpy as np
 import torch
 
+
 class PhaseMaskType(Enum):
     cubic = 1
     doublehelix = 2
@@ -68,11 +69,7 @@ def create_phasemask(type, shape, dimensions, information):
         shape_mask = get_shape_mask(shape=shape, ratio=ratio, X=X, Y=Y)
 
         # Create cubic phase mask
-        pm_img = (
-            max_phase_shift
-            * shape_mask.float()
-            * (torch.mul(torch.mul(X, X), X) + torch.mul(torch.mul(Y, Y), Y))
-        )
+        pm_img = max_phase_shift * shape_mask.float() * (torch.mul(torch.mul(X, X), X) + torch.mul(torch.mul(Y, Y), Y))
 
         if offset[0] >= 0 or offset[1] >= 0:
             pm_img = pm_img / pm_img.max() * max_phase_shift
@@ -134,29 +131,60 @@ def create_phasemask(type, shape, dimensions, information):
                 tmp_x_offset = x_offset
                 tmp_y_offset = y_offset
 
-                x_val = (
-                    int(np.floor(tmp_x_offset))
-                    + int(np.floor(0.5 * x))
-                    - int(np.floor(zernike_x / 2))
-                    + x_index
-                )
-                y_val = (
-                    int(np.floor(tmp_y_offset))
-                    + int(np.floor(0.5 * y))
-                    - int(np.floor(zernike_y / 2))
-                    + y_index
-                )
+                x_val = int(np.floor(tmp_x_offset)) + int(np.floor(0.5 * x)) - int(np.floor(zernike_x / 2)) + x_index
+                y_val = int(np.floor(tmp_y_offset)) + int(np.floor(0.5 * y)) - int(np.floor(zernike_y / 2)) + y_index
 
                 # Place values of zernike
                 if not (x_val < 0 or x_val >= x) and not (y_val < 0 or y_val >= y):
                     pm_img[x_val, y_val] = zernike_matrix[x_index, y_index]
 
         # Normalize values
-        pm_img = (2 * max_phase_shift) * (pm_img - pm_img.min()) / (
-            pm_img.max() - pm_img.min()
-        ) - max_phase_shift
+        pm_img = (2 * max_phase_shift) * (pm_img - pm_img.min()) / (pm_img.max() - pm_img.min()) - max_phase_shift
 
         return torch.tensor(pm_img.astype(np.float32))
+
+
+def create_cubic_mla_phasemask(dimensions, information):
+    """
+    Define the type of phase mask one want to generate e.g. cubic, zernike etc.
+    type:
+        - specifies the type of phase mask e.g. cubic, zernike
+    shape:
+        - specifies the shape of the phase mask e.g. round, square
+    dimensions:
+        - x: defines the x size of the output matrix
+        - y: defines the y size of the output matrix
+        - ratio: defines the scale of the phase mask e.g. 1 creates a bigger phasemask than 0.2
+        - offset: allows to place the phase mask at a certain position in the matrix
+    information:
+        - max_phase_shift: specifies the min, max phase mask values
+        - j: defines the zernike polynomial
+    """
+
+    """
+    {
+            "x": optic_config.pm_shape[0],
+            "y": optic_config.pm_shape[1],
+            "ratio": 0.4,  # 0.3,
+            "offset": [0, 0],
+        """
+    real_x = dimensions["x"]
+    real_y = dimensions["y"]
+    dimensions["x"] = math.floor(dimensions["x"] / 3)
+    dimensions["y"] = math.floor(dimensions["y"] / 3)
+    mini_pm = create_phasemask(PhaseMaskType.cubic, PhaseMaskShape.square, dimensions, information)
+
+    test = torch.zeros(real_x, real_y)
+
+    x_size = mini_pm.shape[0]
+    y_size = mini_pm.shape[1]
+    for i in range(3):
+        for j in range(3):
+            xx = x_size * i
+            yy = y_size * j
+            test[xx : xx + x_size, yy : yy + y_size] = mini_pm
+
+    return test
 
 
 def create_circular_mask(h, w, center=None, radius=None):
@@ -203,14 +231,9 @@ def get_shape_mask(shape, ratio, X, Y):
     """
 
     if shape == PhaseMaskShape.round:
-        return ~(torch.sqrt(torch.mul(X, X) + torch.mul(Y, Y))).ge(
-            torch.tensor([ratio])
-        )
+        return ~(torch.sqrt(torch.mul(X, X) + torch.mul(Y, Y))).ge(torch.tensor([ratio]))
     if shape == PhaseMaskShape.square:
-        return ~(
-            torch.abs(X).ge(torch.tensor([ratio]))
-            | torch.abs(Y).ge(torch.tensor([ratio]))
-        )
+        return ~(torch.abs(X).ge(torch.tensor([ratio])) | torch.abs(Y).ge(torch.tensor([ratio])))
     else:
         raise TypeError("Missing shape information")
 
@@ -248,9 +271,7 @@ def zernike(m, n, radial_coordinate, theta):
         raise ValueError("The value of n must be a positive integer or zero")
 
     if not abs(m) <= n and not m % 2 == n % 2:
-        raise ValueError(
-            "For a given n, m can only take on values -n, -n + 2, -n + 4, ...n. "
-        )
+        raise ValueError("For a given n, m can only take on values -n, -n + 2, -n + 4, ...n. ")
 
     norm = normalization(m, n)
 
@@ -274,13 +295,7 @@ def zernike_polynomial(m, n, radial_coordinate):
     for s in range(int((n - m) / 2) + 1):
 
         value = value + (
-            (-1) ** s
-            * math.factorial(n - s)
-            / (
-                math.factorial(s)
-                * math.factorial((n + m) / 2 - s)
-                * math.factorial((n - m) / 2 - s)
-            )
+            (-1) ** s * math.factorial(n - s) / (math.factorial(s) * math.factorial((n + m) / 2 - s) * math.factorial((n - m) / 2 - s))
         ) * radial_coordinate ** (n - 2 * s)
 
     return value
@@ -297,40 +312,54 @@ def normalization(m, n):
 
     return norm
 
-# from matplotlib import pyplot as plt
-# """
-# Examples for creating cubic and zernike phase masks
-# """
-# matrix1 = create_phasemask(PhaseMaskType.cubic,
-#                            PhaseMaskShape.square,
-#                            {"x": 500, "y": 500, "ratio": 1.5, "offset": [1, 1]},
-#                            information = {"max_phase_shift": 100})
-# plt.imshow(matrix1.detach().numpy())
-# plt.colorbar()
-# plt.show()
 
-# matrix2 = create_phasemask(PhaseMaskType.cubic,
-#                            PhaseMaskShape.round,
-#                            {"x": 500, "y": 500, "ratio": 0.3, "offset": [0, 0]},
-#                            information = {"max_phase_shift": 1})
-# plt.imshow(matrix2.detach().numpy())
-# plt.colorbar()
-# plt.show()
+"""
+Examples for creating cubic and zernike phase masks
+matrix1 = create_phasemask(PhaseMaskType.cubic,
+                           PhaseMaskShape.square,
+                           {"x": 500, "y": 500, "ratio": 1.5, "offset": [1, 1]},
+                           information = {"max_phase_shift": 100})
+plt.imshow(matrix1.detach().numpy())
+plt.colorbar()
+plt.show()
 
-# matrix3 = create_phasemask(PhaseMaskType.zernkie,
-#                            PhaseMaskShape.round,
-#                            {"x": 500, "y": 500, "ratio": 0.5,
-#                                "offset": [0, 0]},
-#                            information={"j": 9, "max_phase_shift": 1})
-# plt.imshow(matrix3.detach().numpy())
-# plt.colorbar()
-# plt.show()
+matrix2 = create_phasemask(PhaseMaskType.cubic,
+                           PhaseMaskShape.round,
+                           {"x": 500, "y": 500, "ratio": 0.3, "offset": [0, 0]},
+                           information = {"max_phase_shift": 1})
+plt.imshow(matrix2.detach().numpy())
+plt.colorbar()
+plt.show()
 
-# matrix4 = create_phasemask(PhaseMaskType.zernkie,
-#                            PhaseMaskShape.square,
-#                            {"x": 500, "y": 500, "ratio": 0.25,
-#                                "offset": [0, 0]},
-#                            information={"j": 9, "max_phase_shift": 2.5})
-# plt.imshow(matrix4.detach().numpy())
-# plt.colorbar()
-# plt.show()
+matrix3 = create_phasemask(PhaseMaskType.zernkie,
+                           PhaseMaskShape.round,
+                           {"x": 500, "y": 500, "ratio": 0.5,
+                               "offset": [0, 0]},
+                           information={"j": 9, "max_phase_shift": 1})
+plt.imshow(matrix3.detach().numpy())
+plt.colorbar()
+plt.show()
+
+matrix4 = create_phasemask(PhaseMaskType.zernkie,
+                           PhaseMaskShape.square,
+                           {"x": 500, "y": 500, "ratio": 0.25,
+                               "offset": [0, 0]},
+                           information={"j": 9, "max_phase_shift": 2.5})
+plt.imshow(matrix4.detach().numpy())
+plt.colorbar()
+plt.show()
+
+from matplotlib import pyplot as plt
+a = create_cubic_mla_phasemask(
+    {
+        "x": 251,
+        "y": 251,
+        "ratio": 0.4,  # 0.3,
+        "offset": [0, 0],
+    },
+    information={"max_phase_shift": 5.4 * math.pi},
+)
+plt.imshow(a)
+plt.show()
+print("ok")
+"""
