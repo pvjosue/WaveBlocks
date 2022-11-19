@@ -22,6 +22,7 @@ class Camera(OpticBlock):
         self.space_variant_psf = space_variant_psf
         self.pixel_size = nn.Parameter(torch.tensor([pixel_size], dtype=torch.float32))
         self.fft_paddings_ready = False
+        self.padSizesPSF = None
         if hasattr(optic_config, "use_fft_conv"):
             self.use_fft_conv = optic_config.use_fft_conv
         else:
@@ -246,7 +247,7 @@ class Camera(OpticBlock):
         return psf
 
     def setup_fft_conv(self, PSF, volume, full_psf_graph=False):
-        if not self.fft_paddings_ready:
+        if not self.fft_paddings_ready or self.padSizesPSF==None:
             volume_shape = volume.shape
             # Compute proper padding
             fullSize = torch.tensor(volume_shape[2:]) + torch.tensor(PSF.shape[2:])
