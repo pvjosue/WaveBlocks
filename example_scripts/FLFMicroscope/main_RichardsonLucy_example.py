@@ -18,6 +18,7 @@ import torch
 import tables
 import pathlib
 import logging
+import os
 
 # Waveblocks imports
 import waveblocks
@@ -34,17 +35,21 @@ torch.set_num_threads(8)
 logger = logging.getLogger("Waveblocks")
 waveblocks.set_logging(debug_mla=True, debug_microscope=True, debug_richardson_lucy=True, debug_optimizer=True)
 
+
+work_dir = os.getcwd()
+save_img_path = f"{work_dir}/outputs/{os.path.basename(__file__)[:-3]}/"
+os.makedirs(save_img_path, exist_ok=True)
+
 # Optical Parameters
 depth_range = [-50, 50]
-depth_step = 10
+depth_step = 1
 depths = np.arange(depth_range[0], depth_range[1] + depth_step, depth_step)
 n_depths = len(depths)
 # Change size of volume you are looking at
 vol_xy_size = 151
-n_iterations = 50
+n_iterations = 500
 
 # Configuration parameters
-lr = 5e-2
 max_volume = 1
 n_epochs = 1
 file_path = pathlib.Path(__file__).parent.absolute()
@@ -165,7 +170,8 @@ plt.show()
 # psfAtSensor has shape(1,11,340,340)    ;   GT_FLF_img has shape (1,1,375,375)
 logger.setLevel(logging.INFO)
 currVol, img_est, losses = RL.RichardsonLucy(
-    wb_micro, gt_flf_img, n_iterations, gt_volume.shape
+    wb_micro, gt_flf_img, n_iterations, gt_volume.shape,
+    output_path=save_img_path
 )
 logger.setLevel(logging.DEBUG)
 
@@ -203,5 +209,5 @@ plt.xlabel("Iteration", fontsize=10)
 plt.ylabel("MSE", fontsize=10)
 plt.title("MSE")
 
-plt.savefig('output.png')
+plt.savefig(f'{save_img_path}/output.png')
 # plt.show()
