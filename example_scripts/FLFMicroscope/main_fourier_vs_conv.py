@@ -18,6 +18,7 @@ import torch
 import tables
 import time
 import pathlib
+import os
 
 # Waveblocks imports
 import waveblocks
@@ -31,6 +32,10 @@ waveblocks.set_logging(debug_mla=True, debug_microscope=True, debug_richardson_l
 
 torch.set_num_threads(8)
 
+
+work_dir = os.getcwd()
+save_img_path = f"{work_dir}/outputs/{os.path.basename(__file__)[:-3]}/"
+os.makedirs(save_img_path, exist_ok=True)
 
 # Optical Parameters
 depth_range = [-50, 50]
@@ -195,16 +200,17 @@ error = (gt_flf_img - gt_flf_img_fourier).abs()
 
 
 r = [0, -1]
+plt.figure(figsize=(10,3))
 plt.subplot(1, 3, 1)
 plt.imshow(gt_flf_img[0, :, r[0] : r[1], r[0] : r[1]].sum(0).detach().cpu().numpy())
-plt.title("Conv. time: " + str(time_conv))
+plt.title(f"Conv. time: {time_conv:,.4f}")
 plt.subplot(1, 3, 2)
 plt.imshow(
     gt_flf_img_fourier[0, :, r[0] : r[1], r[0] : r[1]].sum(0).detach().cpu().numpy()
 )
-plt.title("Four. Conv. time: " + str(time_fft_conv))
+plt.title(f"Four. Conv. time: {time_fft_conv:,.4f}")
 plt.subplot(1, 3, 3)
 plt.imshow(error[0, 0, r[0] : r[1], r[0] : r[1]].detach().cpu().numpy())
-plt.title("Max error " + str(error.max().detach().cpu().item()))
+plt.title(f"Max error {error.max().detach().cpu().item():,.4f}")
 
-plt.show()
+plt.savefig(f'{save_img_path}/Fourier_vs_conv.png')

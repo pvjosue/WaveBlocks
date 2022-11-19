@@ -28,10 +28,15 @@ from waveblocks.blocks.microlens_arrays import MLAType
 import waveblocks.blocks.point_spread_function as psf
 from waveblocks.utils.helper import get_free_gpu
 import logging
+import os 
 
 logger = logging.getLogger("Waveblocks")
 logger.setLevel(logging.INFO)
 torch.set_num_threads(8)
+
+work_dir = os.getcwd()
+save_img_path = f"{work_dir}/outputs/{os.path.basename(__file__)[:-3]}/"
+os.makedirs(save_img_path, exist_ok=True)
 
 # Optical Parameters
 depth_range = [-50, 50]
@@ -98,7 +103,7 @@ opticalConfig.PSF_config.ni = 1
 opticalConfig.sensor_pitch = 6.9
 
 # MLA
-opticalConfig.use_mla = True
+opticalConfig.use_mla = False
 opticalConfig.mla_type = MLAType.periodic
 # Distance between micro lenses centers
 opticalConfig.MLAPitch = 112
@@ -275,4 +280,4 @@ for ep in tqdm(range(nEpochs)):
         plt.plot(errors_imgs)
         plt.title('Error img')
         plt.show()
-        plt.savefig(f'output_PM_learning_ep{ep}.png')
+        plt.savefig(f'{save_img_path}/output_PM_learning_ep{ep}.png')

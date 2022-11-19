@@ -18,6 +18,8 @@ from torch.utils.tensorboard import SummaryWriter
 import torchvision as tv
 from datetime import datetime
 import pathlib
+import os 
+from tqdm import tqdm
 
 # Waveblocks imports
 from waveblocks.microscopes.lightfield_micro import Microscope
@@ -26,6 +28,11 @@ from waveblocks.blocks.microlens_arrays import MLAType
 import waveblocks.blocks.point_spread_function as psf
 
 torch.set_num_threads(16)
+
+
+work_dir = os.getcwd()
+save_img_path = f"{work_dir}/outputs/{os.path.basename(__file__)[:-3]}/"
+os.makedirs(save_img_path, exist_ok=True)
 
 # Optical Parameters
 depth_range = [-50, 50]
@@ -189,7 +196,7 @@ errors = []
 predictions = []
 
 # Optimize
-for ep in range(nEpochs):
+for ep in tqdm(range(nEpochs)):
     plt.clf()
     optimizer.zero_grad()
     WBMicro.zero_grad()
@@ -347,5 +354,5 @@ for ep in range(nEpochs):
         frame1.axes.yaxis.set_ticklabels([])
 
         plt.pause(0.1)
-        plt.savefig('output.png')
+        plt.savefig(f'{save_img_path}/output_{ep}.png')
         plt.show()
