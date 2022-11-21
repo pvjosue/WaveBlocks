@@ -65,6 +65,7 @@ To distribute WaveBlocks on PyPa it has to be packaged this can be done with the
 ```
 python3 -m pip install --upgrade build
 python3 -m build
+pip install -r requirements.txt
 ```
 
 ## Install WaveBlocks
