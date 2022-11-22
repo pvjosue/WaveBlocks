@@ -12,7 +12,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import tables
+import h5py
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 import torchvision as tv
@@ -22,7 +22,7 @@ import os
 from tqdm import tqdm
 
 # Waveblocks imports
-from waveblocks.microscopes.lightfield_micro import Microscope
+from waveblocks.microscopes.fourier_lightfield_mla_micro import Microscope
 from waveblocks.blocks.optic_config import OpticConfig
 from waveblocks.blocks.microlens_arrays import MLAType
 import waveblocks.blocks.point_spread_function as psf
@@ -67,11 +67,11 @@ if plot:
 # psfIn = torch.tensor(psfFile.root.PSFWaveStack, dtype=torch.float32, requires_grad=True).permute(1,3,2,0).unsqueeze(0).contiguous()
 
 # Load volume to use as our object in front of the microscope
-vol_file = tables.open_file(
-    data_path.joinpath("fish_phantom_251_251_51.h5"), "r", driver="H5FD_CORE"
-)
+vol_file = h5py.File(
+    data_path.joinpath("fish_phantom_251_251_51.h5"),
+    "r")
 GT_volume = (
-    torch.tensor(vol_file.root.fish_phantom)
+    torch.tensor(vol_file['fish_phantom'])
     .permute(2, 1, 0)
     .unsqueeze(0)
     .unsqueeze(0)
@@ -113,7 +113,7 @@ opticalConfig.fm = 2500
 opticalConfig.mla_type = MLAType.periodic
 
 # Define relay   to initialize
-opticalConfig.use_relay = True
+opticalConfig.use_relay = False
 opticalConfig.relay_focal_length = 150000
 opticalConfig.relay_separation = opticalConfig.relay_focal_length * 2
 opticalConfig.relay_aperture_width = 50800

@@ -15,8 +15,8 @@ Therefore we forward project a volume of a fish, generating the GT_LF_image.
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import tables
 import pathlib
+import h5py
 
 # Waveblocks imports
 import waveblocks
@@ -32,7 +32,7 @@ torch.set_num_threads(8)
 
 # Optical Parameters
 depth_range = [-50, 50]
-depth_step = 10
+depth_step = 25
 depths = np.arange(depth_range[0], depth_range[1] + depth_step, depth_step)
 n_depths = len(depths)
 # Change size of volume you are looking at
@@ -53,13 +53,11 @@ device = torch.device(
 )
 
 # Load volume to use as our object in front of the microscope
-vol_file = tables.open_file(
+vol_file = h5py.File(
     file_path.parent.joinpath("data/fish_phantom_251_251_51.h5"),
-    "r",
-    driver="H5FD_CORE",
-)
+    "r")
 gt_volume = (
-    torch.tensor(vol_file.root.fish_phantom)
+    torch.tensor(vol_file['fish_phantom'])
     .permute(2, 1, 0)
     .unsqueeze(0)
     .unsqueeze(0)
