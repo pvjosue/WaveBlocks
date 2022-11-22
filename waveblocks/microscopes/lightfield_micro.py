@@ -17,7 +17,7 @@ class Microscope(BaseMicroscope):
             psf_in=psf_in,
             space_variant_psf=True,
         )
-
+        self.space_variant_psf = self.use_mla
         if self.use_mla:
             # MLA
             self.mla = PeriodicMLA(
@@ -52,13 +52,13 @@ class Microscope(BaseMicroscope):
             else:
                 self.psf_at_sensor = self.psf_in
 
-            # Camera
-            self.camera = Camera(
-                optic_config=self.optic_config,
-                members_to_learn=[],
-                pixel_size=self.sampling_rate,
-                space_variant_psf=self.space_variant_psf,
-            )
+        # Camera
+        self.camera = Camera(
+            optic_config=self.optic_config,
+            members_to_learn=[],
+            pixel_size=self.sampling_rate,
+            space_variant_psf=self.space_variant_psf,
+        )
 
             # System Noise
             # self.noise = Noise(optic_config=self.optic_config, members_to_learn=[])

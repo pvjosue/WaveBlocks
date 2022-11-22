@@ -48,8 +48,7 @@ class OpticConfig(nn.Module):
             self.PSF_config = self.get_default_PSF_config()
         else:
             self.PSF_config = PSF_config
-        # Wave Number
-        self.k = 2 * math.pi * self.PSF_config.ni / self.PSF_config.wvl  # wave number
+        self.set_k()
 
     def get_wavelenght(self):
         return self.PSF_config.wvl
@@ -57,5 +56,9 @@ class OpticConfig(nn.Module):
     def get_medium_refractive_index(self):
         return self.PSF_config.ni
 
+    def set_k(self):
+        # Wave Number
+        self.k = 2 * math.pi * self.PSF_config.ni / self.PSF_config.wvl  # wave number
+        
     def get_k(self):
         return self.k

@@ -9,7 +9,7 @@ h5py>=3.2.0
 matplotlib>=3.3.4
 Pillow>=8.1.1
 scipy>=1.6.1
-tables>=3.6.1
+# tables>=3.6.1
 
 pytest>=0.0.0
 setuptools~=50.3.1.post20201107

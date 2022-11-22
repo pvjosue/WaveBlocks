@@ -2,6 +2,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as f
+from tqdm import tqdm
 
 # Waveblocks imports
 from waveblocks.blocks.optic_block import OpticBlock
@@ -113,7 +114,7 @@ class Camera(OpticBlock):
         fm_view = torch.nn.functional.pad(fm_view, pad_size2, "constant", 0)
 
         final_image = torch.zeros(input.shape, dtype=torch.float32).to(input.device)
-        for x1 in range(ml_shape[0]):
+        for x1 in tqdm(range(ml_shape[0])):
             flip_x1 = True if x1 >= ml_half_shape[0].item() else False
             x1_quarter = (
                 ml_shape[0].item() - x1 - 1 if x1 >= ml_half_shape[0].item() else x1

@@ -3,7 +3,7 @@ from math import exp
 import argparse
 import os
 import sys
-import tables
+import h5py
 import numpy as np
 import os,glob
 from PIL import Image
@@ -30,7 +30,7 @@ class Dataset(object):
         signal_power=0,
     ):
         self.fname = fname
-        self.tables = tables.open_file(self.fname, "r")  # , driver="H5FD_CORE")
+        self.tables = h5py.File(self.fname, "r")  # , dri   ver="H5FD_CORE")
         self.neighShape = neighShape
         self.LFShape = self.tables.root.LFData.shape
         self.volShape = self.tables.root.volData.shape
