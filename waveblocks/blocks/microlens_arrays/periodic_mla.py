@@ -162,23 +162,17 @@ class PeriodicMLA(BaseMLA):
             # as the psf diffracts different when placed at different spots of the mla
             for x1 in range(ml_half_shape[0]):
                 x1_shift = ml_half_shape[0] - x1
-                bottom_corner_1 = max((mla_half_shape[0] - half_psf_shape[0] - x1_shift + 1).item(), 0)
-                top_corner_1 = min((mla_half_shape[0] + half_psf_shape[0] - x1_shift).item(), self.mla_image.shape[0])
+                # bottom_corner_1 = max((mla_half_shape[0] - half_psf_shape[0] - x1_shift + 1).item(), 0)
+                # top_corner_1 = min((mla_half_shape[0] + half_psf_shape[0] - x1_shift).item(), self.mla_image.shape[0])
                 for x2 in range(ml_half_shape[1]):
                     # crop translated mla image, to have the element x,y at the center
                     x2_shift = ml_half_shape[1] - x2
 
-                    bottom_corner_2 = max((mla_half_shape[1] - half_psf_shape[1] - x2_shift + 1).item(), 0)
-                    top_corner_2 = min((mla_half_shape[1] + half_psf_shape[1] - x2_shift).item(), self.mla_image.shape[1])
+                    # bottom_corner_2 = max((mla_half_shape[1] - half_psf_shape[1] - x2_shift + 1).item(), 0)
+                    # top_corner_2 = min((mla_half_shape[1] + half_psf_shape[1] - x2_shift).item(), self.mla_image.shape[1])
 
-                    transmittance_current_xy = torch.zeros_like(self.mla_image)
-
-                    transmittance_current_xy[bottom_corner_1 : top_corner_1,
-                        bottom_corner_2 : top_corner_2] = self.mla_image[
-                        bottom_corner_1 : top_corner_1,
-                        bottom_corner_2 : top_corner_2,
-                    ]
-
+                    # Compute the correct transmitance for this PSF position
+                    transmittance_current_xy = torch.roll(self.mla_image, [x1_shift-1, x2_shift-1], [0,1])
                     # multiply by all depths
                     # replicate transmittance by nDepths
                     transmittance_current_xyz = (
@@ -193,7 +187,7 @@ class PeriodicMLA(BaseMLA):
         else:
             # Adjust shape of psf and add padding if necessary
             psf, mla = self.adjust_shape_psf_and_mla(psf, self.mla_image)
-
+            
             # Cycle through depth of psf
             for z in range(psf.shape[1]):
                 # Multiply PSF with MLA
